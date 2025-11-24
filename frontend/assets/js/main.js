@@ -20,6 +20,7 @@ form.addEventListener("submit", async (e) => {
     });
 
     const data = await res.json();
+    console.log("DATA FROM BACKEND:", data);
 
     if (data.error) {
       if (map.getSource(buildingsSourceId)) {
@@ -30,48 +31,117 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
+    const geojson = data.geojson;
     messageBox.textContent = "";
 
-    const geojson = data.geojson;
+    let columnName = null;
+    if (geojson && geojson.features && geojson.features.length > 0) {
+      const props = geojson.features[0].properties || {};
+      const keys = Object.keys(props);
+      columnName = keys.length > 0 ? keys[0] : null;
+    }
 
-    const applyData = () => {
+    if (!geojson || !columnName) {
       if (map.getSource(buildingsSourceId)) {
-        map.getSource(buildingsSourceId).setData(geojson);
-      } else {
-        map.addSource(buildingsSourceId, {
-          type: "geojson",
-          data: geojson
-        });
-        map.addLayer({
-          id: buildingsLayerId,
-          type: "fill",
-          source: buildingsSourceId,
-          paint: {
-            "fill-color": "#555555",
-            "fill-opacity": 0.7
-          }
-        });
+        map.removeLayer(buildingsLayerId);
+        map.removeSource(buildingsSourceId);
       }
-
-      const bounds = getGeojsonBounds(geojson);
-      if (bounds) {
-        map.fitBounds(bounds, { padding: 20 });
-      }
-    };
+      messageBox.textContent = "no data returned";
+      return;
+    }
 
     if (!map.isStyleLoaded()) {
-      map.once("load", applyData);
+      map.once("load", () => applyData(geojson, columnName));
     } else {
-      applyData();
+      applyData(geojson, columnName);
     }
   } catch (err) {
+    console.error(err);
     if (map.getSource(buildingsSourceId)) {
       map.removeLayer(buildingsLayerId);
       map.removeSource(buildingsSourceId);
     }
-    messageBox.textContent = "failed to retrieve data";
+    messageBox.textContent = "failed to retrieve data (frontend)";
   }
 });
+
+function getStats(geojson, columnName) {
+  const values = [];
+
+  for (const f of geojson.features) {
+    const v = Number(f.properties[columnName]);
+    if (Number.isFinite(v)) values.push(v);
+  }
+
+  if (values.length === 0) return null;
+
+  values.sort((a, b) => a - b);
+
+  const min = values[0];
+  const max = values[values.length - 1];
+
+  function percentile(p) {
+    const idx = (p / 100) * (values.length - 1);
+    const low = Math.floor(idx);
+    const high = Math.ceil(idx);
+
+    if (low === high) return values[low];
+
+    const t = idx - low;
+    return values[low] * (1 - t) + values[high] * t;
+  }
+
+  const p25 = percentile(25);
+  const p75 = percentile(75);
+  const median = percentile(50);
+
+  return { min, p25, median, p75, max };
+}
+
+function applyData(geojson, columnName) {
+  const stats = getStats(geojson, columnName);
+
+  let fillColorExpr;
+    if (stats) {
+      fillColorExpr = [
+        "interpolate",
+        ["linear"],
+        ["get", columnName],
+
+        stats.min,    "#113579ff",  // blue
+        stats.p25,    "#0eb3b3ff",  // light teal
+        stats.median, "#f3e962ff",  // mid gray
+        stats.p75,    "#d62708ff",  // soft red
+        stats.max,    "#910000ff"   // deep red
+      ];
+    } else {
+      fillColorExpr = "#555555";
+    }
+
+  if (map.getSource(buildingsSourceId)) {
+    map.getSource(buildingsSourceId).setData(geojson);
+    map.setPaintProperty(buildingsLayerId, "fill-color", fillColorExpr);
+  } else {
+    map.addSource(buildingsSourceId, {
+      type: "geojson",
+      data: geojson
+    });
+    map.addLayer({
+      id: buildingsLayerId,
+      type: "fill",
+      source: buildingsSourceId,
+      paint: {
+        "fill-color": fillColorExpr,
+        "fill-opacity": 0.7
+      }
+    });
+  }
+
+  const bounds = getGeojsonBounds(geojson);
+  if (bounds) {
+    map.fitBounds(bounds, { padding: 20 });
+  }
+}
 
 function getGeojsonBounds(geojson) {
   if (!geojson || !geojson.features || !geojson.features.length) return null;

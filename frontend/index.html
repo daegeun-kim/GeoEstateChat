@@ -7,10 +7,14 @@
     <link href="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.css" rel="stylesheet" />
 </head>
 <body>
-  <div id="map"></div>
+  <div id="main-container">
+    <div id="map"></div>
+    <div id="output-message"></div>
+  </div>
+  
   <form id="query-form">
     <input id="query-input" type="text" />
-    <button type="submit">Run</button>
+    <button type="submit" id="button">Query</button>
   </form>
   <div id="message-box" style="margin-top: 10px; font-size: 14px;"></div>
   <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>

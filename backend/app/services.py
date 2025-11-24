@@ -16,9 +16,10 @@ def create_summary(df, column):
 def run_analysis(query: str):
     llm_result = get_column_from_query(query)
     column = llm_result["column"]
+    neighborhood = llm_result['neighborhood']
     usage = llm_result["usage"]
 
-    data_result = get_data(column)
+    data_result = get_data(column, neighborhood)
     gdf = data_result["gdf"]
     error = data_result["error"]
 
