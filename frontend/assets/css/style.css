@@ -21,10 +21,13 @@ body {
 }
 #output-message {
   width: 400px;
-  height: 750px;
+  height: 710px;
   border-radius: 30px;
   border: 1px solid rgb(102, 102, 102);
   background-color: rgb(16, 16, 19);
+  padding: 20px;
+  color: rgb(146, 146, 146);
+  white-space: pre-wrap;
 }
 
 #query-input {

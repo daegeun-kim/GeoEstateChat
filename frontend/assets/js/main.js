@@ -1,16 +1,21 @@
+// ----- DOM references -----
 const form = document.getElementById("query-form");
 const input = document.getElementById("query-input");
 const messageBox = document.getElementById("message-box");
+const outputBox = document.getElementById("output-message");
 
+// ----- Map source / layer ids -----
 const buildingsSourceId = "buildings";
 const buildingsLayerId = "buildings-fill";
 
+// ----- Form submit → call backend, update map + explanation -----
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const q = input.value.trim();
   if (!q) return;
 
   messageBox.textContent = "data loading";
+  outputBox.textContent = "";
 
   try {
     const res = await fetch("http://localhost:8000/analyze", {
@@ -28,11 +33,14 @@ form.addEventListener("submit", async (e) => {
         map.removeSource(buildingsSourceId);
       }
       messageBox.textContent = data.error;
+      outputBox.textContent = "";
       return;
     }
 
     const geojson = data.geojson;
+    const explanation = data.explanation || "";
     messageBox.textContent = "";
+    outputBox.textContent = explanation;
 
     let columnName = null;
     if (geojson && geojson.features && geojson.features.length > 0) {
@@ -47,6 +55,7 @@ form.addEventListener("submit", async (e) => {
         map.removeSource(buildingsSourceId);
       }
       messageBox.textContent = "no data returned";
+      outputBox.textContent = "";
       return;
     }
 
@@ -62,9 +71,11 @@ form.addEventListener("submit", async (e) => {
       map.removeSource(buildingsSourceId);
     }
     messageBox.textContent = "failed to retrieve data (frontend)";
+    outputBox.textContent = "";
   }
 });
 
+// ----- Basic stats from GeoJSON for color ramp -----
 function getStats(geojson, columnName) {
   const values = [];
 
@@ -98,25 +109,26 @@ function getStats(geojson, columnName) {
   return { min, p25, median, p75, max };
 }
 
+// ----- Add / update buildings layer + color ramp -----
 function applyData(geojson, columnName) {
   const stats = getStats(geojson, columnName);
 
   let fillColorExpr;
-    if (stats) {
-      fillColorExpr = [
-        "interpolate",
-        ["linear"],
-        ["get", columnName],
+  if (stats) {
+    fillColorExpr = [
+      "interpolate",
+      ["linear"],
+      ["get", columnName],
 
-        stats.min,    "#113579ff",  // blue
-        stats.p25,    "#0eb3b3ff",  // light teal
-        stats.median, "#f3e962ff",  // mid gray
-        stats.p75,    "#d62708ff",  // soft red
-        stats.max,    "#910000ff"   // deep red
-      ];
-    } else {
-      fillColorExpr = "#555555";
-    }
+      stats.min,    "#113579ff",
+      stats.p25,    "#0eb3b3ff",
+      stats.median, "#f3e962ff",
+      stats.p75,    "#d62708ff",
+      stats.max,    "#910000ff"
+    ];
+  } else {
+    fillColorExpr = "#555555";
+  }
 
   if (map.getSource(buildingsSourceId)) {
     map.getSource(buildingsSourceId).setData(geojson);
@@ -143,6 +155,7 @@ function applyData(geojson, columnName) {
   }
 }
 
+// ----- Compute bbox from GeoJSON -----
 function getGeojsonBounds(geojson) {
   if (!geojson || !geojson.features || !geojson.features.length) return null;
 

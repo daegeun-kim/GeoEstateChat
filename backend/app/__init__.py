@@ -21,6 +21,7 @@ def analyze(payload: QueryPayload):
     return {
         "geojson": result["geojson"],
         "summary": result["summary"],
+        "explanation": result["explanation"],
         "tokens": result["tokens"],
         "error": result["error"]
     }
