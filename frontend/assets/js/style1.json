@@ -45,7 +45,7 @@
         ["!=", "brunnel", "tunnel"]
       ],
       "layout": {"visibility": "visible"},
-      "paint": {"fill-antialias": false, "fill-color": "rgb(47 ,49 ,55)"}
+      "paint": {"fill-antialias": false, "fill-color": "rgb(67 ,67 ,70)"}
     },
     {
       "id": "landcover_ice_shelf",

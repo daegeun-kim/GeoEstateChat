@@ -7,54 +7,103 @@ body {
   flex-direction: column;
   align-items: center; /* now this works */
 }
+
+/* ----------- buttons ----------- */
+#buttons {
+  margin: 10px;
+}
+#button1, #button2, #button3 {
+  width: 220px;
+  height: 30px;
+  font-size: 18px;
+  border-radius: 15px;
+  color: rgb(255, 255, 255);
+  border: none;
+  cursor: pointer;
+  margin: 3px;
+}
+#button1 { background-color: rgb(5, 28, 43); }
+#button2 { background-color: rgb(5, 38, 41); }
+#button3 { background-color: rgb(6, 37, 24); }
+
+#button1.active { background-color: rgb(156, 191, 219); color: black;}
+#button2.active { background-color: rgb(166, 219, 213); color: black;}
+#button3.active { background-color: rgb(163, 219, 188); color: black;}
+
+
+/* ------------- Map ------------- */
 #main-container {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
 }
-
 #map {
-  width: 1000px;
-  height: 750px;
+  width: 800px;
+  height: 870px;
   border-radius: 30px;
   border: 1px solid rgb(102, 102, 102);
 }
-#output-message {
-  width: 400px;
-  height: 710px;
+/* ------------- input-output ------------- */
+#input-output {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+#chart {
+  width: 600px;
+  height: 420px;
+  padding: 20px;
+  border-radius: 30px;
+  border: 1px solid rgb(102, 102, 102);
+  background-color: rgb(16, 16, 19);
+}
+#message {
+  width: 600px;
+  height: 360px;
   border-radius: 30px;
   border: 1px solid rgb(102, 102, 102);
   background-color: rgb(16, 16, 19);
   padding: 20px;
   color: rgb(146, 146, 146);
   white-space: pre-wrap;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch; 
 }
-
+#output-message {
+  width: 600px;
+  height: 88%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #444 #1a1a1a;
+}
+#query-form {
+  height: 32px;
+  display: flex;
+  align-items: flex-end;
+  z-index: 2;
+}
 #query-input {
-  width: 800px;
+  width: 500px;
   height: 20px;
   font-size: 18px;
   border-radius: 10px;
   background-color: rgb(233, 233, 233);
-  border: 1px solid rgb(49, 49, 49);
+  border: none;
   padding: 5px;
-  margin: 20px auto;
 }
-
-#button {
-  width: 100px;
-  height: 35px;
+#query {
+  width: 80px;
+  height: 32px;
   font-size: 18px;
   border-radius: 10px;
-  background-color: rgb(189, 189, 189);
+  background-color: rgb(65, 112, 156);
   color: rgb(0, 0, 0);
   border: none;
   cursor: pointer;
   margin-left: 10px;
 }
 
-#message-box {
-  margin-top: 20px;
-  font-size: 18px;
-  color: white;
-}

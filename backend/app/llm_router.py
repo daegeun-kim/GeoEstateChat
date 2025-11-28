@@ -8,57 +8,77 @@ api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
 DB_SCHEMA = """
-Database: PostgreSQL 16 with PostGIS
+db: PostgreSQL 16 + PostGIS
 
-Tables:
-- buildings
-    - bin: building id number
-    - base_bbl
-    - laststatus
-    - borocode
-    - shape_area
-    - shape_leng
-    - small_n: small neighborhood
-    - large_n: large neighborhood ('central bronx', 'central brooklyn', 'north brooklyn',
-        'east brooklyn', 'northwest queens', 'south bronx', 'west bronx',
-        'downtown manhattan', 'midtown manhattan', 'south brooklyn',
-        'southeast queens', 'north shore staten island',
-        'south shore staten island', 'uptown manhattan', 'central queens',
-        'east bronx', 'northeast queens', 'way uptown manhattan',
-        'mid staten island', 'western queens', 'east shore staten island',
-        'rockaways queens', 'special queens')
-    - geom
-    - built_year
-    - ground_ele: Ground elevation
-    - heightroof
-    - bld_value_2025
-    - bld_value_2024
-    - avg_prop_value_2025
-    - avg_prop_value_2024
-    - value_sqft_2025
-    - value_sqft_2024
-    - gross_sqft
-    - res_gross_sqft
-    - bld_story
-    - zoning
-    - bldg_class
+tables:
+    buildings:
+        spine: [borocode, large_n, small_n, shape_area, shape_leng, geom]
+        cat: [zoning, bldg_class]
+        bool: [elevator]
+        num:
+            built_year
+            ground_ele : ground elevation (ft)
+            heightroof
+            bld_value_2025 : total building value (2025)
+            bld_value_2024
+            avg_prop_value_2025   : avg property value inside building (2025)
+            avg_prop_value_2024
+            value_sqft_2025
+            value_sqft_2024
+            gross_sqft
+            res_gross_sqft
+            bld_story
+
+    street_block:
+        spine: [borocode, large_n, small_n, geom]
+        cat: [ur20, zoning, bldg_class_dom]
+        num:
+            aland20 : land area
+            awater20 : water area
+            housing20 : total housing units
+            pop20 : population
+            built_year_avg
+            ground_ele_avg
+            height_avg            : avg building height (ft)
+            ele_percent           : percent of buildings with elevator
+            bld_val_2025_sum
+            bld_val_2024_sum
+            gross_sqft_sum
+            res_gross_sqft_sum
+            prop_val_2025_avg
+            prop_val_2024_avg
+            story_avg             : avg building stories
+            val_sqft_2025_avg
+            val_sqft_2024_avg
+
+    regions:
+    borocode: 1=Manhattan, 2=Bronx, 3=Brooklyn, 4=Queens, 5=Staten Island
+    large_n_by_borocode:
+        1: [way uptown manhattan, midtown manhattan, downtown manhattan, uptown manhattan]
+        2: [central bronx, west bronx, east bronx, south bronx]
+        3: [south brooklyn, north brooklyn, central brooklyn, east brooklyn]
+        4: [northeast queens, western queens, southeast queens,
+            rockaways queens, northwest queens, special queens, central queens]
+        5: [south shore staten island, east shore staten island,
+            mid staten island, north shore staten island]
+    """
 
 
-"""
-OUTPUT_FIELDS = ["column", "neighborhood"]
+OUTPUT_FIELDS = ["column_b", "column_s", "neighborhood"]
 
 def make_user_input(query: str) -> list:
     return [
         {
             "role": "system",
             "content": (
-                "You translate natural-language questions into fields for the PostgreSQL table 'buildings'. "
+                "You translate natural-language questions into fields for the PostgreSQL table 'buildings' & 'street_block'. "
                 "Return a single-line JSON object with keys:\n"
-                "  - column: most relevant column name in 'buildings'\n"
+                "  - column_b: most relevant column name in 'buildings'\n"
+                "  - column_s: corresponding most relevant column name in 'street_block'\n"
                 "  - neighborhood: most relevant neighborhood from 'large_n'\n"
                 "If any item cannot be matched, set it to NO_MATCH.\n"
                 "Output format example:\n"
-                '{"column": "heightroof", "neighborhood": "midtown manhattan"}\n'
+                '{"column_b": "heightroof", "column_s": "height_avg", "neighborhood": "midtown manhattan"}\n'
                 "Do not include code fences or any extra text."
             )
         },
@@ -82,7 +102,8 @@ def get_column_from_query(query: str):
     except Exception as e:
         print("format error:", e)
         return {
-            "column": None,
+            "column_b": None,
+            "column_s": None,
             "neighborhood": None,
             "usage": None,
             "error": "LLM_OUTPUT_FORMAT_ERROR",
@@ -95,13 +116,15 @@ def get_column_from_query(query: str):
 
     usage = resp.usage
     print(
-        f"column: {result['column']}, neighborhood: {result['neighborhood']}, "
+        f"column_b: {result['column_b']}, neighborhood: {result['neighborhood']}, "
+        f"column_s: {result['column_s']}"
         f"tokens: {usage.total_tokens}"
     )
 
     return {
-        "column": result["column"],
-            "neighborhood": result["neighborhood"],
+        "column_b": result["column_b"],
+        "column_s": result["column_s"],
+        "neighborhood": result["neighborhood"],
         "usage": {
             "total": usage.total_tokens,
             "input": usage.input_tokens,

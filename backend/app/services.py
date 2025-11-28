@@ -13,8 +13,6 @@ def create_summary(gdf, column: str):
             "median": None,
             "min": None,
             "max": None,
-            "p10": None,
-            "p90": None,
         }
 
     count = int(s.count())
@@ -22,8 +20,6 @@ def create_summary(gdf, column: str):
     median = float(s.median())
     min_val = float(s.min())
     max_val = float(s.max())
-    p10 = float(s.quantile(0.1))
-    p90 = float(s.quantile(0.9))
 
     return {
         "count": count,
@@ -31,8 +27,6 @@ def create_summary(gdf, column: str):
         "median": median,
         "min": min_val,
         "max": max_val,
-        "p10": p10,
-        "p90": p90,
     }
 
 def run_analysis(query: str):
@@ -40,43 +34,71 @@ def run_analysis(query: str):
 
     try:
         llm_result = get_column_from_query(query)
-        column = llm_result["column"]
+        column_b = llm_result["column_b"]
+        column_s = llm_result["column_s"]
         neighborhood = llm_result.get("neighborhood")
         usage = llm_result.get("usage")
 
-        data_result = get_data(column, neighborhood)
-        gdf = data_result["gdf"]
+        data_result = get_data(column_b, column_s, neighborhood)
+        gdf_b = data_result["gdf_b"]
+        gdf_s = data_result["gdf_s"]
+        gdf_s_boro = data_result["gdf_s_boro"]
         error = data_result["error"]
 
         if error is not None:
             print("error in get_data:", error)
             return {
-                "geojson": None,
-                "summary": None,
+                "geojson_b": None,
+                "geojson_s": None,
+                "summary_b": None,
+                "summary_s": None,
                 "explanation": None,
                 "tokens": usage,
                 "error": error,
             }
 
-        summary = create_summary(gdf, column)
-        geojson = json.loads(gdf.to_json())
+        summary_b = create_summary(gdf_b, column_b)
+        summary_s = create_summary(gdf_s, column_s)
+        summary_s_boro = create_summary(gdf_s_boro, column_s)
+        geojson_b = json.loads(gdf_b.to_json())
+        geojson_s = json.loads(gdf_s.to_json())
+        geojson_s_boro = json.loads(gdf_s_boro.to_json())
 
         try:
-            explanation = llm_explain(
+            explanation_b = llm_explain(
                 query=query,
-                column=column,
+                column=column_b,
                 neighborhood=neighborhood,
-                summary=summary,
+                summary=summary_b,
+            )
+            explanation_s = llm_explain(
+                query=query,
+                column=column_s,
+                neighborhood=neighborhood,
+                summary=summary_s,
+            )
+            explanation_s_boro = llm_explain(
+                query=query,
+                column=column_s,
+                neighborhood=neighborhood,
+                summary=summary_s_boro,
             )
         except Exception as e:
             print("llm_explain crashed:", e)
             traceback.print_exc()
-            explanation = f"[llm_explain error: {e}]"
+            explanation_b = f"[llm_explain error: {e}]"
+            explanation_s = f"[llm_explain error: {e}]"
 
         return {
-            "geojson": geojson,
-            "summary": summary,
-            "explanation": explanation,
+            "geojson_b": geojson_b,
+            "geojson_s": geojson_s,
+            "geojson_s_boro": geojson_s_boro,
+            "summary_b": summary_b,
+            "summary_s": summary_s,
+            "summary_s_boro": summary_s_boro,
+            "explanation_b": explanation_b,
+            "explanation_s": explanation_s,
+            "explanation_s_boro": explanation_s_boro,
             "tokens": usage,
             "error": None,
         }
@@ -86,9 +108,12 @@ def run_analysis(query: str):
         print("run_analysis crashed:", e)
         traceback.print_exc()
         return {
-            "geojson": None,
-            "summary": None,
-            "explanation": None,
+            "geojson_b": None,
+            "geojson_s": None,
+            "summary_b": None,
+            "summary_s": None,
+            "explanation_b": None,
+            "explanation_s": None,
             "tokens": None,
             "error": f"internal server error: {e}",
         }

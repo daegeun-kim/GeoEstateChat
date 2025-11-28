@@ -26,10 +26,8 @@ def llm_explain(query: str, column: str, neighborhood: str | None, summary: dict
         "- median: ...\n"
         "- min: ...\n"
         "- max: ...\n"
-        "- p10: ...\n"
-        "- p90: ...\n\n"
         "interpretation:\n"
-        "5-7 short sentences describing skewness, spread, and how to read these numbers. "
+        "3-5 short sentences describing skewness, spread, and how to read these numbers. "
         "Round every numeric value to three decimal places. "
         "Base everything strictly on the provided JSON; do not invent numbers or extra fields."
     )
@@ -56,5 +54,4 @@ def llm_explain(query: str, column: str, neighborhood: str | None, summary: dict
         return content.strip()
 
     except Exception as e:
-        # Prevent backend crash + return visible error
         return f"[llm_explain error: {e}]"
