@@ -1,6 +1,6 @@
 const map = new maplibregl.Map({
         container: 'map',
-        style: 'assets/js/style1.json',
+        style: 'assets/js/style.json',
         center: [-74, 40.7],
         zoom: 9.5
     });

@@ -17,7 +17,7 @@ body {
   height: 30px;
   font-size: 18px;
   border-radius: 15px;
-  color: rgb(255, 255, 255);
+  color: rgb(110, 110, 110);
   border: none;
   cursor: pointer;
   margin: 3px;
@@ -26,9 +26,9 @@ body {
 #button2 { background-color: rgb(5, 38, 41); }
 #button3 { background-color: rgb(6, 37, 24); }
 
-#button1.active { background-color: rgb(156, 191, 219); color: black;}
-#button2.active { background-color: rgb(166, 219, 213); color: black;}
-#button3.active { background-color: rgb(163, 219, 188); color: black;}
+#button1.active { background-color: rgb(152, 179, 201); color: black;}
+#button2.active { background-color: rgb(145, 191, 194); color: black;}
+#button3.active { background-color: rgb(153, 202, 175); color: black;} 
 
 
 /* ------------- Map ------------- */
@@ -41,7 +41,7 @@ body {
   width: 800px;
   height: 870px;
   border-radius: 30px;
-  border: 1px solid rgb(102, 102, 102);
+  border: 1px solid rgb(75, 75, 75);
 }
 /* ------------- input-output ------------- */
 #input-output {
@@ -55,14 +55,14 @@ body {
   height: 420px;
   padding: 20px;
   border-radius: 30px;
-  border: 1px solid rgb(102, 102, 102);
+  border: 1px solid rgb(75, 75, 75);
   background-color: rgb(16, 16, 19);
 }
 #message {
   width: 600px;
   height: 360px;
   border-radius: 30px;
-  border: 1px solid rgb(102, 102, 102);
+  border: 1px solid rgb(75, 75, 75);
   background-color: rgb(16, 16, 19);
   padding: 20px;
   color: rgb(146, 146, 146);

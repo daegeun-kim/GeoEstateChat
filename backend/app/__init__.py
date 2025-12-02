@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from .services import run_analysis
+from .modes.services import run_analysis
 
 class QueryPayload(BaseModel):
     query: str

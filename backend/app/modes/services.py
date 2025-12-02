@@ -1,6 +1,6 @@
-from .llm_router import get_column_from_query
-from .db import get_data
-from .llm_explain import llm_explain
+from ..llm.llm_router import get_column_from_query
+from ..db import get_data
+from ..llm.llm_explain import llm_explain
 import json
 
 def create_summary(gdf, column: str):

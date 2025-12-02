@@ -176,10 +176,10 @@ function applyData(geojson, columnName) {
       ["linear"],
       ["get", columnName],
       stats.min,    "#0038a0ff",
-      stats.p25,    "#1ed3daff",
-      stats.median, "#f3e962ff",
-      stats.p75,    "#ff7a62ff",
-      stats.max,    "#e00000ff"
+      stats.p25,    "#03d4e3ff",
+      stats.median, "#edeabfff",
+      stats.p75,    "#e27871ff",
+      stats.max,    "#b20000ff"
     ];
   } else {
     fillColorExpr = "#555";
