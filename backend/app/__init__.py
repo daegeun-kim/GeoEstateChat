@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from .modes.services import run_analysis
+from .modes.services import run
 
 class QueryPayload(BaseModel):
     query: str
@@ -17,17 +17,17 @@ app.add_middleware(
 
 @app.post("/analyze")
 def analyze(payload: QueryPayload):
-    result = run_analysis(payload.query)
+    result = run(payload.query)
     return {
-        "geojson_b": result["geojson_b"],
-        "geojson_s": result["geojson_s"],
-        "geojson_s_boro": result["geojson_s_boro"],
-        "summary_b": result["summary_b"],
-        "summary_s": result["summary_s"],
-        "summary_s_boro": result["summary_s"],
-        "explanation_b": result["explanation_b"],
-        "explanation_s": result["explanation_s"],
-        "explanation_s_boro": result["explanation_s"],
-        "tokens": result["tokens"],
-        "error": result["error"]
+        "geojson": result['geojson'],
+        "column": result['column'],
+        "dtype": result['dtype'],
+        "scale": result['scale'],
+        "region": result['region'],
+        "table": result['table'],
+        "filters": result['filters'],
+        "summary": result['summary'],
+        "explanation": result['explanation'],
+        "usage": result['usage'],
+        "error": result['error'],
     }

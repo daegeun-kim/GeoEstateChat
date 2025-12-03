@@ -3,43 +3,13 @@ const form = document.getElementById("query-form");
 const input = document.getElementById("query-input");
 const outputBox = document.getElementById("output-message");
 
-const btn1 = document.getElementById("button1");
-const btn2 = document.getElementById("button2");
-const btn3 = document.getElementById("button3");
-
 // ----- Map source / layer ids / setup -----
 const buildingsSourceId = "buildings";
 const buildingsLayerId = "buildings-fill";
 
-let geojsonS = null;
-let geojsonB = null;
-let geojsonS_borough = null;
-let explanationS = "";
-let explanationB = "";
-let explanationS_borough = "";
-
-let activeMode = "city";
-
-btn1.onclick = () => {
-  activeMode = "city";
-  setActive(btn1);
-  updateView();
-};
-btn2.onclick = () => {
-  activeMode = "borough";
-  setActive(btn2);
-  updateView();
-};
-btn3.onclick = () => {
-  activeMode = "neighborhood";
-  setActive(btn3);
-  updateView();
-};
-
-function setActive(activeBtn) {
-  [btn1, btn2, btn3].forEach(b => b.classList.remove("active"));
-  activeBtn.classList.add("active");
-}
+let geojson = null;
+let explanation = "";
+let columnName = null;
 
 // ----- Form submit → call backend, update map + explanation -----
 form.addEventListener("submit", async (e) => {
@@ -68,13 +38,9 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    geojsonS = data.geojson_s;
-    geojsonS_borough = data.geojson_s_boro;
-    geojsonB = data.geojson_b;
-
-    explanationS = data.explanation_s || "";
-    explanationS_borough = data.explanation_s_boro || "";
-    explanationB = data.explanation_b || "";
+    geojson = data.geojson;
+    explanation = data.explanation || "";
+    columnName = data.column || getColumnName(geojson);
 
     updateView();
 
@@ -96,20 +62,6 @@ function getColumnName(geojson) {
 }
 
 function updateView() {
-  let geojson = null;
-  let explanation = "";
-
-  if (activeMode === "city") {
-    geojson = geojsonS;
-    explanation = explanationS;
-  } else if (activeMode === "borough") {
-    geojson = geojsonS_borough;
-    explanation = explanationS_borough;
-  } else if (activeMode === "neighborhood") {
-    geojson = geojsonB;
-    explanation = explanationB;
-  }
-
   if (!geojson) {
     if (map.getSource(buildingsSourceId)) {
       map.removeLayer(buildingsLayerId);
@@ -119,18 +71,18 @@ function updateView() {
     return;
   }
 
-  const columnName = getColumnName(geojson);
-  if (!columnName) {
-    outputBox.textContent = "no numeric column found";
+  const col = columnName || getColumnName(geojson);
+  if (!col) {
+    outputBox.textContent = "no column found";
     return;
   }
 
   outputBox.textContent = explanation;
 
   if (!map.isStyleLoaded()) {
-    map.once("load", () => applyData(geojson, columnName));
+    map.once("load", () => applyData(geojson, col));
   } else {
-    applyData(geojson, columnName);
+    applyData(geojson, col);
   }
 }
 

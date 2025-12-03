@@ -1,9 +1,21 @@
-from ..llm.llm_router import get_column_from_query
-from ..db import get_data
+from ..llm.llm_router import select_mode, build_analyze_plan
+from ..llm.llm_client import call_llm
+from ..db import get_data_analyze
 from ..llm.llm_explain import llm_explain
+import traceback
 import json
 
+
 def create_summary(gdf, column: str):
+    if gdf is None or column is None or column not in gdf.columns:
+        return {
+            "count": 0,
+            "mean": None,
+            "median": None,
+            "min": None,
+            "max": None,
+        }
+
     s = gdf[column].dropna()
 
     if s.empty:
@@ -27,93 +39,122 @@ def create_summary(gdf, column: str):
         "median": median,
         "min": min_val,
         "max": max_val,
-    }
+    }    
 
-def run_analysis(query: str):
-    import traceback
+def run_analyze(query: str):
+    messages = build_analyze_plan(query)
+    plan, usage, plan_error = call_llm(messages)
 
-    try:
-        llm_result = get_column_from_query(query)
-        column_b = llm_result["column_b"]
-        column_s = llm_result["column_s"]
-        neighborhood = llm_result.get("neighborhood")
-        usage = llm_result.get("usage")
-
-        data_result = get_data(column_b, column_s, neighborhood)
-        gdf_b = data_result["gdf_b"]
-        gdf_s = data_result["gdf_s"]
-        gdf_s_boro = data_result["gdf_s_boro"]
-        error = data_result["error"]
-
-        if error is not None:
-            print("error in get_data:", error)
-            return {
-                "geojson_b": None,
-                "geojson_s": None,
-                "summary_b": None,
-                "summary_s": None,
-                "explanation": None,
-                "tokens": usage,
-                "error": error,
-            }
-
-        summary_b = create_summary(gdf_b, column_b)
-        summary_s = create_summary(gdf_s, column_s)
-        summary_s_boro = create_summary(gdf_s_boro, column_s)
-        geojson_b = json.loads(gdf_b.to_json())
-        geojson_s = json.loads(gdf_s.to_json())
-        geojson_s_boro = json.loads(gdf_s_boro.to_json())
-
-        try:
-            explanation_b = llm_explain(
-                query=query,
-                column=column_b,
-                neighborhood=neighborhood,
-                summary=summary_b,
-            )
-            explanation_s = llm_explain(
-                query=query,
-                column=column_s,
-                neighborhood=neighborhood,
-                summary=summary_s,
-            )
-            explanation_s_boro = llm_explain(
-                query=query,
-                column=column_s,
-                neighborhood=neighborhood,
-                summary=summary_s_boro,
-            )
-        except Exception as e:
-            print("llm_explain crashed:", e)
-            traceback.print_exc()
-            explanation_b = f"[llm_explain error: {e}]"
-            explanation_s = f"[llm_explain error: {e}]"
-
+    if plan_error or not plan:
         return {
-            "geojson_b": geojson_b,
-            "geojson_s": geojson_s,
-            "geojson_s_boro": geojson_s_boro,
-            "summary_b": summary_b,
-            "summary_s": summary_s,
-            "summary_s_boro": summary_s_boro,
-            "explanation_b": explanation_b,
-            "explanation_s": explanation_s,
-            "explanation_s_boro": explanation_s_boro,
-            "tokens": usage,
-            "error": None,
+            "geojson": None,
+            "column": None,
+            "dtype": None,
+            "scale": None,
+            "region": None,
+            "table": None,
+            "filters": None,
+            "summary": None,
+            "explanation": None,
+            "usage": usage,
+            "error": plan_error or "LLM_PLAN_ERROR",
         }
 
+    column = plan.get("column")
+    dtype = plan.get("dtype")
+    scale = plan.get("scale")
+    region = plan.get("region")
+    table = plan.get("table")
+    filters = plan.get("filters") or []
+
+    db_result = get_data_analyze(column=column, table=table, filters=filters)
+    gdf = db_result["gdf"]
+    db_error = db_result["error"]
+
+    summary = create_summary(gdf=gdf, column=column)
+
+    try:
+        explanation = llm_explain(query=query, summary=summary)
     except Exception as e:
-        import traceback
-        print("run_analysis crashed:", e)
+        print("llm_explain crashed:", e)
+        traceback.print_exc()
+        explanation = f"[llm_explain error: {e}]"
+
+    if gdf is not None:
+        geojson = json.loads(gdf.to_json())   # dict
+    else:
+        geojson = None
+
+    return {
+        "geojson": geojson, 
+        "column": column, 
+        "dtype": dtype,
+        "scale": scale,
+        "region": region, 
+        "table": table, 
+        "filters": filters,
+        "summary": summary, 
+        "explanation": explanation, 
+        "usage": usage,  
+        "error": db_error,   
+    }
+
+
+def run(query: str):
+    try:
+        messages = select_mode(query)
+        mode_json, usage_mode, mode_error = call_llm(messages)
+
+        if mode_error or not mode_json:
+            return {
+                "geojson": None,
+                "column": None,
+                "dtype": None,
+                "scale": None,
+                "region": None,
+                "table": None,
+                "filters": None,
+                "summary": None,
+                "explanation": None,
+                "usage": usage_mode,
+                "error": mode_error or "LLM_MODE_ERROR",
+            }
+
+        mode = mode_json.get("mode")
+
+        if mode == "analyze":
+            result = run_analyze(query)
+        else:
+            return {
+                "geojson": None,
+                "column": None,
+                "dtype": None,
+                "scale": None,
+                "region": None,
+                "table": None,
+                "filters": None,
+                "summary": None,
+                "explanation": None,
+                "usage": usage_mode,
+                "error": f"mode '{mode}' not implemented",
+            }
+
+        result["mode"] = mode
+        result["mode_usage"] = usage_mode
+        return result
+
+    except Exception as e:
         traceback.print_exc()
         return {
-            "geojson_b": None,
-            "geojson_s": None,
-            "summary_b": None,
-            "summary_s": None,
-            "explanation_b": None,
-            "explanation_s": None,
-            "tokens": None,
+            "geojson": None,
+            "column": None,
+            "dtype": None,
+            "scale": None,
+            "region": None,
+            "table": None,
+            "filters": None,
+            "summary": None,
+            "explanation": None,
+            "usage": None,
             "error": f"internal server error: {e}",
         }

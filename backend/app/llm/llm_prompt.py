@@ -1,11 +1,6 @@
 DB_SCHEMA_analyze = """
 db: PostgreSQL 16 + PostGIS
 
-modes: identifying intention
-    1: when user wants analyze a specific region
-    2: when user wants to figure out which region is most suitable for a purpose
-    3: when user wants to compare two different regions
-
 tables:
     buildings:
         spine: [borocode, large_n, small_n, shape_area, shape_leng, geom]

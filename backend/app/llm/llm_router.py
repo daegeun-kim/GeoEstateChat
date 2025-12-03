@@ -15,15 +15,16 @@ def select_mode(query: str) -> list:
         {
             "role": "system",
             "content": (
-                "Classify the query into: analyze, search, or compare. "
-                "analyze: when user wants analyze a specific region"
-                "search: when user wants to figure out which region is most suitable for a purpose"
-                "compare: when user wants to compare two different regions"
-                "Respond with JSON only: {\"mode\": \"...\"}."
+                "Classify into: analyze, search, compare. "
+                "analyze: user specifies a neighborhood-scale region (any sub-borough area, even if name is not exact). "
+                "search: user mentions only borough or city-level area, or gives no region. "
+                "compare: user mentions two distinct regions. "
+                "Return JSON only: {\"mode\":\"...\"}."
             )
         },
         {"role": "user", "content": query}
     ]
+
 
 def build_analyze_plan(query: str) -> list:
     return [
@@ -46,6 +47,6 @@ def build_analyze_plan(query: str) -> list:
         },
         {
             "role": "user",
-            "content": f"Schema:\n{DB_SCHEMA_analyze()}\n\nQuery:\n{query}",
+            "content": f"Schema:\n{DB_SCHEMA_analyze}\n\nQuery:\n{query}",
         },
     ]

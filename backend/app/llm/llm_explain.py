@@ -3,13 +3,13 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import os
 
-load_dotenv("../.env")
+load_dotenv(dotenv_path="../.env")
 api_key = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=api_key)
 
 
-def llm_explain(query: str, column: str, neighborhood: str | None, summary: dict) -> str:
+def llm_explain(query: str, summary: dict) -> str:
     summary_json = json.dumps(summary, ensure_ascii=False)
 
     system_msg = (
@@ -34,8 +34,6 @@ def llm_explain(query: str, column: str, neighborhood: str | None, summary: dict
 
     user_msg = (
         f"User question: {query}\n\n"
-        f"Selected column: {column}\n"
-        f"Neighborhood filter: {neighborhood}\n\n"
         f"Result data (JSON):\n{summary_json}"
     )
 
