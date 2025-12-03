@@ -1,17 +1,24 @@
-// ----- DOM references -----
 const form = document.getElementById("query-form");
 const input = document.getElementById("query-input");
 const outputBox = document.getElementById("output-message");
 
-// ----- Map source / layer ids / setup -----
+const singleMapDiv = document.getElementById("map");
+const mapLeftDiv = document.getElementById("map-left");
+const mapRightDiv = document.getElementById("map-right");
+
 const buildingsSourceId = "buildings";
 const buildingsLayerId = "buildings-fill";
+const leftSourceId = "buildings-left";
+const rightSourceId = "buildings-right";
+const leftLayerId = "buildings-fill-left";
+const rightLayerId = "buildings-fill-right";
 
+let currentMode = null;
 let geojson = null;
+let geojsonList = null;
 let explanation = "";
 let columnName = null;
 
-// ----- Form submit → call backend, update map + explanation -----
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const q = input.value.trim();
@@ -30,40 +37,90 @@ form.addEventListener("submit", async (e) => {
     console.log("DATA FROM BACKEND:", data);
 
     if (data.error) {
-      if (map.getSource(buildingsSourceId)) {
-        map.removeLayer(buildingsLayerId);
-        map.removeSource(buildingsSourceId);
-      }
+      clearAllSources();
       outputBox.textContent = data.error;
       return;
     }
 
-    geojson = data.geojson;
-    explanation = data.explanation || "";
-    columnName = data.column || getColumnName(geojson);
+    const mode = data.mode || "analyze";
+    currentMode = mode;
 
-    updateView();
+    if (mode === "compare") {
+      enableCompareLayout();
+      handleCompareData(data);
+    } else {
+      enableSingleLayout();
+      handleSingleData(data);
+    }
 
   } catch (err) {
     console.error(err);
-    if (map.getSource(buildingsSourceId)) {
-      map.removeLayer(buildingsLayerId);
-      map.removeSource(buildingsSourceId);
-    }
+    clearAllSources();
     outputBox.textContent = "failed to retrieve data (frontend)";
   }
 });
 
-function getColumnName(geojson) {
-  if (!geojson || !geojson.features || !geojson.features.length) return null;
-  const props = geojson.features[0].properties || {};
+function enableSingleLayout() {
+  if (singleMapDiv) singleMapDiv.style.display = "block";
+  if (mapLeftDiv) mapLeftDiv.style.display = "none";
+  if (mapRightDiv) mapRightDiv.style.display = "none";
+  if (map) map.resize();
+}
+
+function enableCompareLayout() {
+  if (singleMapDiv) singleMapDiv.style.display = "none";
+  if (mapLeftDiv) mapLeftDiv.style.display = "block";
+  if (mapRightDiv) mapRightDiv.style.display = "block";
+  if (mapLeft) mapLeft.resize();
+  if (mapRight) mapRight.resize();
+}
+
+function clearAllSources() {
+  if (typeof map !== "undefined" && map && map.getSource(buildingsSourceId)) {
+    map.removeLayer(buildingsLayerId);
+    map.removeSource(buildingsSourceId);
+  }
+  if (typeof mapLeft !== "undefined" && mapLeft && mapLeft.getSource(leftSourceId)) {
+    mapLeft.removeLayer(leftLayerId);
+    mapLeft.removeSource(leftSourceId);
+  }
+  if (typeof mapRight !== "undefined" && mapRight && mapRight.getSource(rightSourceId)) {
+    mapRight.removeLayer(rightLayerId);
+    mapRight.removeSource(rightSourceId);
+  }
+}
+
+function handleSingleData(data) {
+  geojson = data.geojson;
+  explanation = data.explanation || "";
+  columnName = data.column || getColumnName(geojson);
+  updateSingleView();
+}
+
+function handleCompareData(data) {
+  geojsonList = data.geojson || [];
+  const expl = data.explanation || [];
+  explanation = Array.isArray(expl) ? expl.join("\n\n") : expl || "";
+  const g0 = geojsonList[0];
+  const g1 = geojsonList[1];
+  columnName =
+    data.column ||
+    (g0 && getColumnName(g0)) ||
+    (g1 && getColumnName(g1)) ||
+    null;
+  updateCompareView();
+}
+
+function getColumnName(geojsonObj) {
+  if (!geojsonObj || !geojsonObj.features || !geojsonObj.features.length) return null;
+  const props = geojsonObj.features[0].properties || {};
   const keys = Object.keys(props);
   return keys.length ? keys[0] : null;
 }
 
-function updateView() {
+function updateSingleView() {
   if (!geojson) {
-    if (map.getSource(buildingsSourceId)) {
+    if (typeof map !== "undefined" && map && map.getSource(buildingsSourceId)) {
       map.removeLayer(buildingsLayerId);
       map.removeSource(buildingsSourceId);
     }
@@ -80,17 +137,63 @@ function updateView() {
   outputBox.textContent = explanation;
 
   if (!map.isStyleLoaded()) {
-    map.once("load", () => applyData(geojson, col));
+    map.once("load", () => applyDataSingle(geojson, col));
   } else {
-    applyData(geojson, col);
+    applyDataSingle(geojson, col);
   }
 }
 
-// ----- Basic stats from GeoJSON for color ramp -----
-function getStats(geojson, columnName) {
+function updateCompareView() {
+  if (!geojsonList || geojsonList.length < 3) {
+    clearAllSources();
+    outputBox.textContent = "no data returned for compare mode";
+    return;
+  }
+
+  const statsSource = geojsonList[0];
+  const col = columnName;
+  if (!col || !statsSource) {
+    clearAllSources();
+    outputBox.textContent = "no column found for compare mode";
+    return;
+  }
+
+  outputBox.textContent = explanation;
+
+  const stats = getStats(statsSource, col);
+  let fillColorExpr;
+
+  if (stats) {
+    fillColorExpr = [
+      "interpolate",
+      ["linear"],
+      ["get", col],
+      stats.min,    "#0038a0ff",
+      stats.p25,    "#03d4e3ff",
+      stats.median, "#edeabfff",
+      stats.p75,    "#e27871ff",
+      stats.max,    "#b20000ff"
+    ];
+  } else {
+    fillColorExpr = "#555";
+  }
+
+  const gLeft = geojsonList[1];
+  const gRight = geojsonList[2];
+
+  if (!gLeft || !gRight) {
+    clearAllSources();
+    outputBox.textContent = "invalid geojson payload for compare mode";
+    return;
+  }
+
+  applyDataCompare(gLeft, gRight, col, fillColorExpr);
+}
+
+function getStats(geojsonObj, col) {
   const values = [];
-  for (const f of geojson.features) {
-    const v = Number(f.properties[columnName]);
+  for (const f of geojsonObj.features) {
+    const v = Number(f.properties[col]);
     if (Number.isFinite(v)) values.push(v);
   }
   if (!values.length) return null;
@@ -118,15 +221,15 @@ function getStats(geojson, columnName) {
   };
 }
 
-function applyData(geojson, columnName) {
-  const stats = getStats(geojson, columnName);
+function applyDataSingle(geojsonObj, col) {
+  const stats = getStats(geojsonObj, col);
 
   let fillColorExpr;
   if (stats) {
     fillColorExpr = [
       "interpolate",
       ["linear"],
-      ["get", columnName],
+      ["get", col],
       stats.min,    "#0038a0ff",
       stats.p25,    "#03d4e3ff",
       stats.median, "#edeabfff",
@@ -138,12 +241,12 @@ function applyData(geojson, columnName) {
   }
 
   if (map.getSource(buildingsSourceId)) {
-    map.getSource(buildingsSourceId).setData(geojson);
+    map.getSource(buildingsSourceId).setData(geojsonObj);
     map.setPaintProperty(buildingsLayerId, "fill-color", fillColorExpr);
   } else {
     map.addSource(buildingsSourceId, {
       type: "geojson",
-      data: geojson
+      data: geojsonObj
     });
     map.addLayer({
       id: buildingsLayerId,
@@ -156,12 +259,58 @@ function applyData(geojson, columnName) {
     });
   }
 
-  const bounds = getGeojsonBounds(geojson);
+  const bounds = getGeojsonBounds(geojsonObj);
   if (bounds) map.fitBounds(bounds, { padding: 20 });
 }
 
-function getGeojsonBounds(geojson) {
-  if (!geojson || !geojson.features || !geojson.features.length) return null;
+function applyDataCompare(geojsonLeftData, geojsonRightData, col, fillColorExpr) {
+  if (mapLeft.getSource(leftSourceId)) {
+    mapLeft.getSource(leftSourceId).setData(geojsonLeftData);
+    mapLeft.setPaintProperty(leftLayerId, "fill-color", fillColorExpr);
+  } else {
+    mapLeft.addSource(leftSourceId, {
+      type: "geojson",
+      data: geojsonLeftData
+    });
+    mapLeft.addLayer({
+      id: leftLayerId,
+      type: "fill",
+      source: leftSourceId,
+      paint: {
+        "fill-color": fillColorExpr,
+        "fill-opacity": 0.7
+      }
+    });
+  }
+
+  if (mapRight.getSource(rightSourceId)) {
+    mapRight.getSource(rightSourceId).setData(geojsonRightData);
+    mapRight.setPaintProperty(rightLayerId, "fill-color", fillColorExpr);
+  } else {
+    mapRight.addSource(rightSourceId, {
+      type: "geojson",
+      data: geojsonRightData
+    });
+    mapRight.addLayer({
+      id: rightLayerId,
+      type: "fill",
+      source: rightSourceId,
+      paint: {
+        "fill-color": fillColorExpr,
+        "fill-opacity": 0.7
+      }
+    });
+  }
+
+  const boundsLeft = getGeojsonBounds(geojsonLeftData);
+  const boundsRight = getGeojsonBounds(geojsonRightData);
+
+  if (boundsLeft) mapLeft.fitBounds(boundsLeft, { padding: 20 });
+  if (boundsRight) mapRight.fitBounds(boundsRight, { padding: 20 });
+}
+
+function getGeojsonBounds(geojsonObj) {
+  if (!geojsonObj || !geojsonObj.features || !geojsonObj.features.length) return null;
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
@@ -178,7 +327,7 @@ function getGeojsonBounds(geojson) {
     }
   }
 
-  for (const f of geojson.features) {
+  for (const f of geojsonObj.features) {
     if (f.geometry && f.geometry.coordinates) extend(f.geometry.coordinates);
   }
 

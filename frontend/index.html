@@ -7,24 +7,26 @@
     <link href="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.css" rel="stylesheet" />
 </head>
 <body>
-  <div id="buttons">
-    <button id="button1" class="mode-btn">City</button>
-    <button id="button2" class="mode-btn">Borough</button>
-    <button id="button3" class="mode-btn">Neighborhood</button>
-  </div>
   <div id="main-container">
-    <div id="map"></div>
-    <div id="input-output">
-      <div id="chart"></div>
-      <div id="message">
-        <div id="output-message"></div>
-        <form id="query-form">
-          <input id="query-input" type="text"/>
-          <button id="query" type="submit">Query</button>
-        </form>
-      </div>
+    <div id="single-map-container">
+        <div id="map"></div>
+    </div>
+    <div id="compare-map-container">
+        <div id="map-left"></div>
+        <div id="map-right"></div>
+    </div>
+    <div id="chart"></div>
+  </div>
+  <div id="input-output">
+    <div id="message">
+      <div id="output-message"></div>
+      <form id="query-form">
+        <input id="query-input" type="text"/>
+        <button id="query" type="submit">Query</button>
+      </form>
     </div>
   </div>
+  
   <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
   <script src="assets/js/map.js"></script>
   <script src="assets/js/main.js"></script>

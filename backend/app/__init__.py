@@ -19,6 +19,7 @@ app.add_middleware(
 def analyze(payload: QueryPayload):
     result = run(payload.query)
     return {
+        "mode": result['mode'],
         "geojson": result['geojson'],
         "column": result['column'],
         "dtype": result['dtype'],
