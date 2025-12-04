@@ -67,7 +67,7 @@ def run_analyze(query: str):
     table = plan.get("table")
     filters = plan.get("filters") or []
 
-    db_result = get_data_analyze(column=column, table=table, filters=filters)
+    db_result = get_data_analyze(column=column, scale=scale, table=table, filters=filters)
     gdf = db_result["gdf"]
     db_error = db_result["error"]
 

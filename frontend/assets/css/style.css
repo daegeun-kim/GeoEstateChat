@@ -39,12 +39,12 @@ body {
   width: 1040px;
   height: 570px;
   border: 1px solid rgb(75, 75, 75);
-  display: none;
+  display: block;
 }
 
 #compare-map-container {
   width: 1040px;
-  display: block;
+  display: none;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -56,7 +56,7 @@ body {
   height: 570px;
   border: 1px solid rgb(75, 75, 75);
   box-sizing: border-box;
-  display: block;
+  display: none;
 }
 
 

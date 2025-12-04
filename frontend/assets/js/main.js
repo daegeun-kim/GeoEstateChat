@@ -136,12 +136,22 @@ function updateSingleView() {
 
   outputBox.textContent = explanation;
 
+  if (currentMode === "analyze" && window.renderHistogram) {
+    const values = geojson.features
+      .map(f => f.properties && f.properties[col])
+      .filter(v => typeof v === "number" && !Number.isNaN(v));
+    if (values.length) {
+      window.renderHistogram("#chart", values);
+    }
+  }
+
   if (!map.isStyleLoaded()) {
     map.once("load", () => applyDataSingle(geojson, col));
   } else {
     applyDataSingle(geojson, col);
   }
 }
+
 
 function updateCompareView() {
   if (!geojsonList || geojsonList.length < 3) {

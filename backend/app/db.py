@@ -9,7 +9,7 @@ load_dotenv(dotenv_path="../.env")
 DB_URL = os.getenv("db_url")
 engine = create_engine(DB_URL)
 
-def get_data_analyze(column, table, filters):
+def get_data_analyze(column, scale, table, filters):
     if not column:
         print("no column matched")
         return {"gdf": None, "error": "no appropriate column"}
@@ -29,7 +29,12 @@ def get_data_analyze(column, table, filters):
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
-    sql = f"SELECT {column}, geom FROM {base_table} WHERE {where_sql}"
+    if scale == "city":
+        sql = f"SELECT {column}, borocode, geom FROM {base_table} WHERE {where_sql}"
+    elif scale == "borough":
+        sql = f"SELECT {column}, large_n, geom FROM {base_table} WHERE {where_sql}"
+    elif scale == "large_n":
+        sql = f"SELECT {column}, small_n, geom FROM {base_table} WHERE {where_sql}"
     print("sql:", sql, "params:", params)
 
     try:
