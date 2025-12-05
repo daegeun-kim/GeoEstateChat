@@ -19,7 +19,21 @@ let geojsonList = null;
 let explanation = "";
 let columnName = null;
 
-form.addEventListener("submit", async (e) => {
+const analyzeCache = localStorage.getItem("analyzeCache");
+
+if (analyzeCache) {
+  const cache = JSON.parse(analyzeCache);
+  currentMode = "analyze";
+  columnName = cache.column || null;
+  explanation = cache.explanation || "";
+  enableSingleLayout();
+  outputBox.textContent = explanation;
+  if (window.renderHistogram && Array.isArray(cache.values) && cache.values.length) {
+    window.renderHistogram("#chart", cache.values);
+  }
+}
+
+form.addEventListener("submit", async e => {
   e.preventDefault();
   const q = input.value.trim();
   if (!q) return;
@@ -45,6 +59,33 @@ form.addEventListener("submit", async (e) => {
     const mode = data.mode || "analyze";
     currentMode = mode;
 
+    if (mode === "analyze") {
+      const col = data.column;
+      const gj = data.geojson;
+      let values = [];
+      if (gj && gj.features && col) {
+        values = gj.features
+          .map(f => f.properties && f.properties[col])
+          .filter(v => typeof v === "number" && !Number.isNaN(v));
+      }
+      if (values.length > 20000) {
+        const step = Math.ceil(values.length / 20000);
+        values = values.filter((_, i) => i % step === 0);
+      }
+      const cachePayload = {
+        mode: "analyze",
+        column: col,
+        explanation: data.explanation || "",
+        values
+      };
+      try {
+        localStorage.setItem("analyzeCache", JSON.stringify(cachePayload));
+      } catch (e) {
+        console.warn("failed to cache analyze data", e);
+        localStorage.removeItem("analyzeCache");
+      }
+    }
+
     if (mode === "compare") {
       enableCompareLayout();
       handleCompareData(data);
@@ -52,7 +93,6 @@ form.addEventListener("submit", async (e) => {
       enableSingleLayout();
       handleSingleData(data);
     }
-
   } catch (err) {
     console.error(err);
     clearAllSources();
@@ -64,15 +104,15 @@ function enableSingleLayout() {
   if (singleMapDiv) singleMapDiv.style.display = "block";
   if (mapLeftDiv) mapLeftDiv.style.display = "none";
   if (mapRightDiv) mapRightDiv.style.display = "none";
-  if (map) map.resize();
+  if (typeof map !== "undefined" && map) map.resize();
 }
 
 function enableCompareLayout() {
   if (singleMapDiv) singleMapDiv.style.display = "none";
   if (mapLeftDiv) mapLeftDiv.style.display = "block";
   if (mapRightDiv) mapRightDiv.style.display = "block";
-  if (mapLeft) mapLeft.resize();
-  if (mapRight) mapRight.resize();
+  if (typeof mapLeft !== "undefined" && mapLeft) mapLeft.resize();
+  if (typeof mapRight !== "undefined" && mapRight) mapRight.resize();
 }
 
 function clearAllSources() {
@@ -152,7 +192,6 @@ function updateSingleView() {
   }
 }
 
-
 function updateCompareView() {
   if (!geojsonList || geojsonList.length < 3) {
     clearAllSources();
@@ -178,11 +217,11 @@ function updateCompareView() {
       "interpolate",
       ["linear"],
       ["get", col],
-      stats.min,    "#0038a0ff",
-      stats.p25,    "#03d4e3ff",
+      stats.min, "#0038a0ff",
+      stats.p25, "#03d4e3ff",
       stats.median, "#edeabfff",
-      stats.p75,    "#e27871ff",
-      stats.max,    "#b20000ff"
+      stats.p75, "#e27871ff",
+      stats.max, "#b20000ff"
     ];
   } else {
     fillColorExpr = "#555";
@@ -240,11 +279,11 @@ function applyDataSingle(geojsonObj, col) {
       "interpolate",
       ["linear"],
       ["get", col],
-      stats.min,    "#0038a0ff",
-      stats.p25,    "#03d4e3ff",
+      stats.min, "#0038a0ff",
+      stats.p25, "#03d4e3ff",
       stats.median, "#edeabfff",
-      stats.p75,    "#e27871ff",
-      stats.max,    "#b20000ff"
+      stats.p75, "#e27871ff",
+      stats.max, "#b20000ff"
     ];
   } else {
     fillColorExpr = "#555";
@@ -322,13 +361,18 @@ function applyDataCompare(geojsonLeftData, geojsonRightData, col, fillColorExpr)
 function getGeojsonBounds(geojsonObj) {
   if (!geojsonObj || !geojsonObj.features || !geojsonObj.features.length) return null;
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
 
   function extend(coords) {
     for (const c of coords) {
-      if (Array.isArray(c[0])) extend(c);
-      else {
-        const x = c[0], y = c[1];
+      if (Array.isArray(c[0])) {
+        extend(c);
+      } else {
+        const x = c[0];
+        const y = c[1];
         if (x < minX) minX = x;
         if (y < minY) minY = y;
         if (x > maxX) maxX = x;
