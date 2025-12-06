@@ -24,6 +24,7 @@ def llm_explain(query: str, summary: dict) -> str:
         "whether it is skewed, presence of outliers) in words. "
         "Write concise, well-structured English in about 70 words ±20, using short paragraphs or bullet points. "
         "If region is a number, it is a NYC borocode; convert it to the corresponding borough name in your explanation."
+        "when explaining with numbers, include the unit"
     )
 
     user_msg = (

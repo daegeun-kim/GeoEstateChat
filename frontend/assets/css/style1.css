@@ -112,8 +112,35 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #444 #1a1a1a;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-message {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border-top-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  font-size: 16px;
+  line-height: 1.4;
 }
 
+.chat-message-user {
+  align-self: flex-end;
+  background-color: rgb(79, 122, 161);
+  color: white;
+  border-top-right-radius: 4px;
+  border-top-left-radius: 14px;
+}
+
+.chat-message-bot {
+  align-self: flex-start;
+  background-color: rgb(40, 40, 45);
+  color: rgb(220, 220, 220);
+  border-top-left-radius: 4px;
+  border-top-right-radius: 14px;
+}
 #query-form {
   margin-top: 10px;
   height: 36px;

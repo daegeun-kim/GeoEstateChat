@@ -27,8 +27,8 @@ window.renderHistogram = function (containerSelector, values) {
     p20: pctAll(20),
     p35: pctAll(35),
     median: pctAll(50),
-    p65: pctAll(65),
-    p80: pctAll(80),
+    p75: pctAll(75),
+    p90: pctAll(90),
     max: sortedAll[sortedAll.length - 1]
   };
 
@@ -114,18 +114,18 @@ window.renderHistogram = function (containerSelector, values) {
         statsAll.p20,
         statsAll.p35,
         statsAll.median,
-        statsAll.p65,
-        statsAll.p80,
+        statsAll.p75,
+        statsAll.p90,
         statsAll.max
       ])
       .range([
-        "#0045c5ff",
-        "#03afffff",
-        "#54fff1ff",
-        "#fffcccff",
-        "#ff8e80ff",
-        "#ff2222ff",
-        "#bd0000ff"
+        "#ffffffff",
+        "#f8ffbbff",
+        "#99ff90ff",
+        "#60faffff",
+        "#0099ffff",
+        "#0044ffff",
+        "#a300eeff"
       ]);
   }
 

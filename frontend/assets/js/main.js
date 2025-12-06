@@ -23,6 +23,20 @@ let explanation = "";
 let columnName = null;
 let scale = null;
 
+//---------------------- Chat UI helpers ----------------------
+function appendMessage(text, type) {
+  const msg = document.createElement("div");
+  msg.classList.add("chat-message");
+  if (type === "user") {
+    msg.classList.add("chat-message-user");
+  } else {
+    msg.classList.add("chat-message-bot");
+  }
+  msg.textContent = text;
+  outputBox.appendChild(msg);
+  outputBox.scrollTop = outputBox.scrollHeight;
+}
+
 //---------------------- Debug cache restore (charts only) ----------------------
 const analyzeCache = localStorage.getItem("analyzeCache");
 
@@ -33,7 +47,9 @@ if (analyzeCache) {
   explanation = cache.explanation || "";
   scale = cache.scale || null;
   enableSingleLayout();
-  outputBox.textContent = explanation;
+  if (explanation) {
+    appendMessage(explanation, "bot");
+  }
 
   if (window.renderHistogram && Array.isArray(cache.values) && cache.values.length) {
     window.renderHistogram("#chart1", cache.values);
@@ -46,7 +62,8 @@ form.addEventListener("submit", async e => {
   const q = input.value.trim();
   if (!q) return;
 
-  outputBox.textContent = "data loading";
+  appendMessage(q, "user");
+  input.value = "";
 
   try {
     const res = await fetch("http://localhost:8000/analyze", {
@@ -60,7 +77,7 @@ form.addEventListener("submit", async e => {
 
     if (data.error) {
       clearAllSources();
-      outputBox.textContent = data.error;
+      appendMessage(data.error, "bot");
       return;
     }
 
@@ -77,7 +94,7 @@ form.addEventListener("submit", async e => {
   } catch (err) {
     console.error(err);
     clearAllSources();
-    outputBox.textContent = "failed to retrieve data (frontend)";
+    appendMessage("failed to retrieve data (frontend)", "bot");
   }
 });
 
@@ -152,17 +169,19 @@ function updateSingleView() {
       if (map.getLayer(buildingsLayerId)) map.removeLayer(buildingsLayerId);
       map.removeSource(buildingsSourceId);
     }
-    outputBox.textContent = "no data returned";
+    appendMessage("no data returned", "bot");
     return;
   }
 
   const col = columnName || getColumnName(geojson);
   if (!col) {
-    outputBox.textContent = "no column found";
+    appendMessage("no column found", "bot");
     return;
   }
 
-  outputBox.textContent = explanation;
+  if (explanation) {
+    appendMessage(explanation, "bot");
+  }
 
   let valuesForCache = [];
 
@@ -222,7 +241,7 @@ function updateSingleView() {
 function updateCompareView() {
   if (!geojsonList || geojsonList.length < 3) {
     clearAllSources();
-    outputBox.textContent = "no data returned for compare mode";
+    appendMessage("no data returned for compare mode", "bot");
     return;
   }
 
@@ -230,11 +249,13 @@ function updateCompareView() {
   const col = columnName;
   if (!col || !statsSource) {
     clearAllSources();
-    outputBox.textContent = "no column found for compare mode";
+    appendMessage("no column found for compare mode", "bot");
     return;
   }
 
-  outputBox.textContent = explanation;
+  if (explanation) {
+    appendMessage(explanation, "bot");
+  }
 
   const stats = getStats(statsSource, col);
   let fillColorExpr;
@@ -244,20 +265,13 @@ function updateCompareView() {
       "interpolate",
       ["linear"],
       ["get", col],
-      stats.min, "#0045c5ff",
-      stats.p20, "#03afffff",
-      stats.p35, "#54fff1ff",
-      stats.median, "#fffcccff",
-      stats.p65, "#ff8e80ff",
-      stats.p80, "#ff2222ff",
-      stats.max, "#bd0000ff"
-      // stats.min, "#0045c5ff",
-      // stats.p20, "#03afffff",
-      // stats.p35, "#54fff1ff",
-      // stats.median, "#fffcccff",
-      // stats.p65, "#ff8e80ff",
-      // stats.p80, "#ff2222ff",
-      // stats.max, "#bd0000ff"
+      stats.min, "#ffffffff",
+      stats.p20, "#f8ffbbff",
+      stats.p35, "#99ff90ff",
+      stats.median, "#60faffff",
+      stats.p75, "#0099ffff",
+      stats.p90, "#0044ffff",
+      stats.max, "#a300eeff"
     ];
     fillColorExpr = [
       "case",
@@ -274,7 +288,7 @@ function updateCompareView() {
 
   if (!gLeft || !gRight) {
     clearAllSources();
-    outputBox.textContent = "invalid geojson payload for compare mode";
+    appendMessage("invalid geojson payload for compare mode", "bot");
     return;
   }
 
@@ -306,8 +320,8 @@ function getStats(geojsonObj, col) {
     p20: percentile(20),
     p35: percentile(35),
     median: percentile(50),
-    p65: percentile(65),
-    p80: percentile(80),
+    p75: percentile(75),
+    p90: percentile(90),
     max: positiveValues[positiveValues.length - 1]
   };
 }
@@ -322,18 +336,18 @@ function applyDataSingle(geojsonObj, col) {
       "interpolate",
       ["linear"],
       ["get", col],
-      stats.min, "#0045c5ff",
-      stats.p20, "#03afffff",
-      stats.p35, "#54fff1ff",
-      stats.median, "#fffcccff",
-      stats.p65, "#ff8e80ff",
-      stats.p80, "#ff2222ff",
-      stats.max, "#bd0000ff"
+      stats.min, "#ffffffff",
+      stats.p20, "#f8ffbbff",
+      stats.p35, "#99ff90ff",
+      stats.median, "#60faffff",
+      stats.p75, "#0099ffff",
+      stats.p90, "#0044ffff",
+      stats.max, "#a300eeff"
     ];
     fillColorExpr = [
       "case",
       ["==", ["get", col], 0],
-      "#002555ff",
+      "#757575ff",
       rampExpr
     ];
   } else {
