@@ -1,3 +1,4 @@
+//---------------------- DOM references ----------------------
 const form = document.getElementById("query-form");
 const input = document.getElementById("query-input");
 const outputBox = document.getElementById("output-message");
@@ -6,6 +7,7 @@ const singleMapDiv = document.getElementById("map");
 const mapLeftDiv = document.getElementById("map-left");
 const mapRightDiv = document.getElementById("map-right");
 
+//---------------------- Map source / layer ids ----------------------
 const buildingsSourceId = "buildings";
 const buildingsLayerId = "buildings-fill";
 const leftSourceId = "buildings-left";
@@ -13,12 +15,15 @@ const rightSourceId = "buildings-right";
 const leftLayerId = "buildings-fill-left";
 const rightLayerId = "buildings-fill-right";
 
+//---------------------- Global state ----------------------
 let currentMode = null;
 let geojson = null;
 let geojsonList = null;
 let explanation = "";
 let columnName = null;
+let scale = null;
 
+//---------------------- Debug cache restore (charts only) ----------------------
 const analyzeCache = localStorage.getItem("analyzeCache");
 
 if (analyzeCache) {
@@ -26,13 +31,16 @@ if (analyzeCache) {
   currentMode = "analyze";
   columnName = cache.column || null;
   explanation = cache.explanation || "";
+  scale = cache.scale || null;
   enableSingleLayout();
   outputBox.textContent = explanation;
+
   if (window.renderHistogram && Array.isArray(cache.values) && cache.values.length) {
-    window.renderHistogram("#chart", cache.values);
+    window.renderHistogram("#chart1", cache.values);
   }
 }
 
+//---------------------- Form submit handler ----------------------
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const q = input.value.trim();
@@ -59,33 +67,6 @@ form.addEventListener("submit", async e => {
     const mode = data.mode || "analyze";
     currentMode = mode;
 
-    if (mode === "analyze") {
-      const col = data.column;
-      const gj = data.geojson;
-      let values = [];
-      if (gj && gj.features && col) {
-        values = gj.features
-          .map(f => f.properties && f.properties[col])
-          .filter(v => typeof v === "number" && !Number.isNaN(v));
-      }
-      if (values.length > 20000) {
-        const step = Math.ceil(values.length / 20000);
-        values = values.filter((_, i) => i % step === 0);
-      }
-      const cachePayload = {
-        mode: "analyze",
-        column: col,
-        explanation: data.explanation || "",
-        values
-      };
-      try {
-        localStorage.setItem("analyzeCache", JSON.stringify(cachePayload));
-      } catch (e) {
-        console.warn("failed to cache analyze data", e);
-        localStorage.removeItem("analyzeCache");
-      }
-    }
-
     if (mode === "compare") {
       enableCompareLayout();
       handleCompareData(data);
@@ -100,6 +81,7 @@ form.addEventListener("submit", async e => {
   }
 });
 
+//---------------------- Layout toggles ----------------------
 function enableSingleLayout() {
   if (singleMapDiv) singleMapDiv.style.display = "block";
   if (mapLeftDiv) mapLeftDiv.style.display = "none";
@@ -115,28 +97,32 @@ function enableCompareLayout() {
   if (typeof mapRight !== "undefined" && mapRight) mapRight.resize();
 }
 
+//---------------------- Clear all map sources ----------------------
 function clearAllSources() {
   if (typeof map !== "undefined" && map && map.getSource(buildingsSourceId)) {
-    map.removeLayer(buildingsLayerId);
+    if (map.getLayer(buildingsLayerId)) map.removeLayer(buildingsLayerId);
     map.removeSource(buildingsSourceId);
   }
   if (typeof mapLeft !== "undefined" && mapLeft && mapLeft.getSource(leftSourceId)) {
-    mapLeft.removeLayer(leftLayerId);
+    if (mapLeft.getLayer(leftLayerId)) mapLeft.removeLayer(leftLayerId);
     mapLeft.removeSource(leftSourceId);
   }
   if (typeof mapRight !== "undefined" && mapRight && mapRight.getSource(rightSourceId)) {
-    mapRight.removeLayer(rightLayerId);
+    if (mapRight.getLayer(rightLayerId)) mapRight.removeLayer(rightLayerId);
     mapRight.removeSource(rightSourceId);
   }
 }
 
+//---------------------- Single-mode handler ----------------------
 function handleSingleData(data) {
   geojson = data.geojson;
   explanation = data.explanation || "";
   columnName = data.column || getColumnName(geojson);
+  scale = data.scale || null;
   updateSingleView();
 }
 
+//---------------------- Compare-mode handler ----------------------
 function handleCompareData(data) {
   geojsonList = data.geojson || [];
   const expl = data.explanation || [];
@@ -151,6 +137,7 @@ function handleCompareData(data) {
   updateCompareView();
 }
 
+//---------------------- Helper: infer column name ----------------------
 function getColumnName(geojsonObj) {
   if (!geojsonObj || !geojsonObj.features || !geojsonObj.features.length) return null;
   const props = geojsonObj.features[0].properties || {};
@@ -158,10 +145,11 @@ function getColumnName(geojsonObj) {
   return keys.length ? keys[0] : null;
 }
 
+//---------------------- Update single view (map + charts) ----------------------
 function updateSingleView() {
   if (!geojson) {
     if (typeof map !== "undefined" && map && map.getSource(buildingsSourceId)) {
-      map.removeLayer(buildingsLayerId);
+      if (map.getLayer(buildingsLayerId)) map.removeLayer(buildingsLayerId);
       map.removeSource(buildingsSourceId);
     }
     outputBox.textContent = "no data returned";
@@ -176,22 +164,61 @@ function updateSingleView() {
 
   outputBox.textContent = explanation;
 
+  let valuesForCache = [];
+
   if (currentMode === "analyze" && window.renderHistogram) {
     const values = geojson.features
       .map(f => f.properties && f.properties[col])
       .filter(v => typeof v === "number" && !Number.isNaN(v));
+
     if (values.length) {
-      window.renderHistogram("#chart", values);
+      window.renderHistogram("#chart1", values);
+      valuesForCache = values.slice(0, 5000);
     }
   }
 
-  if (!map.isStyleLoaded()) {
-    map.once("load", () => applyDataSingle(geojson, col));
+  if (
+    currentMode === "analyze" &&
+    window.renderNeighborhoodRanking &&
+    geojson &&
+    Array.isArray(geojson.features) &&
+    col &&
+    scale
+  ) {
+    window.renderNeighborhoodRanking(
+      "#chart2",
+      geojson.features,
+      col,
+      scale
+    );
+  }
+
+  if (currentMode === "analyze") {
+    const cacheObj = {
+      column: col,
+      values: valuesForCache,
+      explanation: explanation,
+      scale: scale
+    };
+    try {
+      localStorage.setItem("analyzeCache", JSON.stringify(cacheObj));
+    } catch (e) {
+      console.warn("Failed to update analyzeCache:", e);
+    }
+  }
+
+  if (typeof map !== "undefined" && map) {
+    if (!map.isStyleLoaded()) {
+      map.once("load", () => applyDataSingle(geojson, col));
+    } else {
+      applyDataSingle(geojson, col);
+    }
   } else {
-    applyDataSingle(geojson, col);
+    console.warn("Map instance not available when updateSingleView ran");
   }
 }
 
+//---------------------- Update compare view (maps only) ----------------------
 function updateCompareView() {
   if (!geojsonList || geojsonList.length < 3) {
     clearAllSources();
@@ -213,15 +240,30 @@ function updateCompareView() {
   let fillColorExpr;
 
   if (stats) {
-    fillColorExpr = [
+    const rampExpr = [
       "interpolate",
       ["linear"],
       ["get", col],
-      stats.min, "#0038a0ff",
-      stats.p25, "#03d4e3ff",
-      stats.median, "#edeabfff",
-      stats.p75, "#e27871ff",
-      stats.max, "#b20000ff"
+      stats.min, "#0045c5ff",
+      stats.p20, "#03afffff",
+      stats.p35, "#54fff1ff",
+      stats.median, "#fffcccff",
+      stats.p65, "#ff8e80ff",
+      stats.p80, "#ff2222ff",
+      stats.max, "#bd0000ff"
+      // stats.min, "#0045c5ff",
+      // stats.p20, "#03afffff",
+      // stats.p35, "#54fff1ff",
+      // stats.median, "#fffcccff",
+      // stats.p65, "#ff8e80ff",
+      // stats.p80, "#ff2222ff",
+      // stats.max, "#bd0000ff"
+    ];
+    fillColorExpr = [
+      "case",
+      ["==", ["get", col], 0],
+      "#002555ff",
+      rampExpr
     ];
   } else {
     fillColorExpr = "#555";
@@ -239,51 +281,60 @@ function updateCompareView() {
   applyDataCompare(gLeft, gRight, col, fillColorExpr);
 }
 
+//---------------------- Helper: stats for color ramp ----------------------
 function getStats(geojsonObj, col) {
-  const values = [];
+  const positiveValues = [];
   for (const f of geojsonObj.features) {
     const v = Number(f.properties[col]);
-    if (Number.isFinite(v)) values.push(v);
+    if (Number.isFinite(v) && v > 0) positiveValues.push(v);
   }
-  if (!values.length) return null;
+  if (!positiveValues.length) return null;
 
-  values.sort((a, b) => a - b);
-
-  const min = values[0];
-  const max = values[values.length - 1];
+  positiveValues.sort((a, b) => a - b);
 
   function percentile(p) {
-    const idx = (p / 100) * (values.length - 1);
+    const idx = (p / 100) * (positiveValues.length - 1);
     const lo = Math.floor(idx);
     const hi = Math.ceil(idx);
-    if (lo === hi) return values[lo];
+    if (lo === hi) return positiveValues[lo];
     const t = idx - lo;
-    return values[lo] * (1 - t) + values[hi] * t;
+    return positiveValues[lo] * (1 - t) + positiveValues[hi] * t;
   }
 
   return {
-    min,
-    p25: percentile(25),
+    min: positiveValues[0],
+    p20: percentile(20),
+    p35: percentile(35),
     median: percentile(50),
-    p75: percentile(75),
-    max
+    p65: percentile(65),
+    p80: percentile(80),
+    max: positiveValues[positiveValues.length - 1]
   };
 }
 
+//---------------------- Apply data: single map ----------------------
 function applyDataSingle(geojsonObj, col) {
   const stats = getStats(geojsonObj, col);
 
   let fillColorExpr;
   if (stats) {
-    fillColorExpr = [
+    const rampExpr = [
       "interpolate",
       ["linear"],
       ["get", col],
-      stats.min, "#0038a0ff",
-      stats.p25, "#03d4e3ff",
-      stats.median, "#edeabfff",
-      stats.p75, "#e27871ff",
-      stats.max, "#b20000ff"
+      stats.min, "#0045c5ff",
+      stats.p20, "#03afffff",
+      stats.p35, "#54fff1ff",
+      stats.median, "#fffcccff",
+      stats.p65, "#ff8e80ff",
+      stats.p80, "#ff2222ff",
+      stats.max, "#bd0000ff"
+    ];
+    fillColorExpr = [
+      "case",
+      ["==", ["get", col], 0],
+      "#002555ff",
+      rampExpr
     ];
   } else {
     fillColorExpr = "#555";
@@ -312,6 +363,7 @@ function applyDataSingle(geojsonObj, col) {
   if (bounds) map.fitBounds(bounds, { padding: 20 });
 }
 
+//---------------------- Apply data: compare maps ----------------------
 function applyDataCompare(geojsonLeftData, geojsonRightData, col, fillColorExpr) {
   if (mapLeft.getSource(leftSourceId)) {
     mapLeft.getSource(leftSourceId).setData(geojsonLeftData);
@@ -358,6 +410,7 @@ function applyDataCompare(geojsonLeftData, geojsonRightData, col, fillColorExpr)
   if (boundsRight) mapRight.fitBounds(boundsRight, { padding: 20 });
 }
 
+//---------------------- Helper: GeoJSON bounds ----------------------
 function getGeojsonBounds(geojsonObj) {
   if (!geojsonObj || !geojsonObj.features || !geojsonObj.features.length) return null;
 

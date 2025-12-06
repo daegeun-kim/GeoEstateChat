@@ -6,7 +6,7 @@ import traceback
 import json
 import pandas as pd
 
-def create_summary(gdf, column: str):
+def create_summary(gdf, column: str, scale, region, filters):
     if gdf is None or column is None or column not in gdf.columns:
         return {
             "count": 0,
@@ -34,6 +34,9 @@ def create_summary(gdf, column: str):
     max_val = float(s.max())
 
     return {
+        "data": column,
+        "scale of analysis" : scale,
+        "region" : region,
         "count": count,
         "mean": mean,
         "median": median,
@@ -71,7 +74,7 @@ def run_analyze(query: str):
     gdf = db_result["gdf"]
     db_error = db_result["error"]
 
-    summary = create_summary(gdf=gdf, column=column)
+    summary = create_summary(gdf=gdf, column=column, scale=scale, region=region, filters=filters)
 
     try:
         explanation = llm_explain(query=query, summary=summary)

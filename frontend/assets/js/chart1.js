@@ -4,10 +4,10 @@ window.renderHistogram = function (containerSelector, values) {
 
   const node = container.node();
   const outerWidth = node ? node.getBoundingClientRect().width : 600;
-  const outerHeight = outerWidth * 0.25;
+  const outerHeight = outerWidth * 0.5;
 
   const margin = { top: 10, right: 50, bottom: 20, left: 50 };
-  const width = outerWidth / 2 - margin.left - margin.right;
+  const width = outerWidth - margin.left - margin.right;
   const height = outerHeight - margin.top - margin.bottom;
 
   const clean = values.filter(v => Number.isFinite(v));
@@ -24,11 +24,19 @@ window.renderHistogram = function (containerSelector, values) {
   };
   const statsAll = {
     min: sortedAll[0],
-    p25: pctAll(25),
+    p20: pctAll(20),
+    p35: pctAll(35),
     median: pctAll(50),
-    p75: pctAll(75),
+    p65: pctAll(65),
+    p80: pctAll(80),
     max: sortedAll[sortedAll.length - 1]
   };
+
+
+
+  //----------------------------------------------
+  //-----Conditional log scale determination------
+  //----------------------------------------------
 
   const positives = clean.filter(v => v > 0);
   let scaleType = "linear";
@@ -88,7 +96,7 @@ window.renderHistogram = function (containerSelector, values) {
     bins = d3
       .bin()
       .domain([minVal, maxVal])
-      .thresholds(500)(used);
+      .thresholds(200)(used);
   }
 
   const y = d3
@@ -103,19 +111,53 @@ window.renderHistogram = function (containerSelector, values) {
       .scaleLinear()
       .domain([
         statsAll.min,
-        statsAll.p25,
+        statsAll.p20,
+        statsAll.p35,
         statsAll.median,
-        statsAll.p75,
+        statsAll.p65,
+        statsAll.p80,
         statsAll.max
       ])
       .range([
-        "#0038a0ff",
-        "#03d4e3ff",
-        "#edeabfff",
-        "#e27871ff",
-        "#b20000ff"
+        "#0045c5ff",
+        "#03afffff",
+        "#54fff1ff",
+        "#fffcccff",
+        "#ff8e80ff",
+        "#ff2222ff",
+        "#bd0000ff"
       ]);
   }
+
+
+  //---------------------------------------------------------
+  //---------------------- Histogram ------------------------
+  //---------------------------------------------------------
+
+  // ------ Gridlines (Y: horizontal) ------
+  svg.append("g")
+    .attr("class", "grid-y")
+    .call(
+      d3.axisLeft(y)
+        .ticks(5)
+        .tickSize(-width)
+        .tickFormat("")
+    )
+    .call(g => g.selectAll("line").attr("stroke", "#202020"))
+    .call(g => g.selectAll("path").remove());
+
+  // ------ Gridlines (X: vertical) -------
+  svg.append("g")
+    .attr("class", "grid-x")
+    .attr("transform", `translate(0,0)`)
+    .call(
+      d3.axisBottom(x)
+        .ticks(6)
+        .tickSize(height)
+        .tickFormat("")
+    )
+    .call(g => g.selectAll("line").attr("stroke", "#202020"))
+    .call(g => g.selectAll("path").remove());
 
   svg
     .selectAll("rect")
@@ -131,20 +173,38 @@ window.renderHistogram = function (containerSelector, values) {
       const mid = (d.x0 + d.x1) / 2;
       return colorScale(mid);
     })
-    .attr("opacity", 0.9);
+    // .attr("opacity", 0.8);
 
   svg
     .append("g")
     .attr("transform", `translate(0,${height})`)
     .call(d3.axisBottom(x).ticks(6))
-    .call(g => g.selectAll("text").attr("fill", "#ffffff"))
-    .call(g => g.selectAll("line").attr("stroke", "#ffffff"))
-    .call(g => g.selectAll("path").attr("stroke", "#ffffff"));
+    .call(g => g.selectAll("text").attr("fill", "#d6d6d6").style("font-size", "12px"))
+    .call(g => g.selectAll("line").attr("stroke", "#adadad"))
+    .call(g => g.selectAll("path").attr("stroke", "#adadad"));
 
   svg
     .append("g")
     .call(d3.axisLeft(y).ticks(5))
-    .call(g => g.selectAll("text").attr("fill", "#ffffff"))
-    .call(g => g.selectAll("line").attr("stroke", "#ffffff"))
-    .call(g => g.selectAll("path").attr("stroke", "#ffffff"));
+    .call(g => g.selectAll("text").attr("fill", "#d6d6d6").style("font-size", "12px"))
+    .call(g => g.selectAll("line").attr("stroke", "#353535"))
+    .call(g => g.selectAll("path").attr("stroke", "#353535"));
+  
+    // ---------------------- Top boundary ----------------------
+  svg.append("line")
+    .attr("x1", 0)
+    .attr("x2", width)
+    .attr("y1", 0)
+    .attr("y2", 0)
+    .attr("stroke", "#353535")
+    .attr("stroke-width", 1);
+
+  // ---------------------- Right boundary --------------------
+  svg.append("line")
+    .attr("x1", width)
+    .attr("x2", width)
+    .attr("y1", 0)
+    .attr("y2", height)
+    .attr("stroke", "#353535")
+    .attr("stroke-width", 1);
 };

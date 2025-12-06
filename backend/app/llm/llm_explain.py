@@ -13,28 +13,24 @@ def llm_explain(query: str, summary: dict) -> str:
     summary_json = json.dumps(summary, ensure_ascii=False)
 
     system_msg = (
-        "You are an urban data analyst. "
-        "You receive a user question and computed analysis results as JSON. "
-        "You must produce a concise, structured explanation in English with clear line breaks. "
-        "Follow exactly this structure:\n\n"
-        "Analysis Summary:\n"
-        "used data: {column name}\n"
-        "neighborhood: {neighborhood name or 'all areas'}\n\n"
-        "statistical summary:\n"
-        "- count: ...\n"
-        "- mean: ...\n"
-        "- median: ...\n"
-        "- min: ...\n"
-        "- max: ...\n"
-        "interpretation:\n"
-        "3-5 short sentences describing skewness, spread, and how to read these numbers. "
-        "Round every numeric value to three decimal places. "
-        "Base everything strictly on the provided JSON; do not invent numbers or extra fields."
+        "You are an urban data analyst and helpful conversational assistant. "
+        "Answer the user’s question in natural language using both your own knowledge "
+        "and the numeric summary provided. "
+        "Treat the JSON summary as ground truth about the data and describe patterns, "
+        "typical ranges, and extremes clearly. "
+        "Answer the question directly; do NOT talk about JSON, columns, or field names, "
+        "and do NOT suggest making plots or further analyses unless the user explicitly asks. "
+        "When the user asks to 'show' a distribution, describe its shape (e.g., where most values lie, "
+        "whether it is skewed, presence of outliers) in words. "
+        "Write concise, well-structured English in about 70 words ±20, using short paragraphs or bullet points. "
+        "If region is a number, it is a NYC borocode; convert it to the corresponding borough name in your explanation."
     )
 
     user_msg = (
-        f"User question: {query}\n\n"
-        f"Result data (JSON):\n{summary_json}"
+        f"User question:\n{query}\n\n"
+        "Below are precomputed summary statistics from the relevant dataset, in JSON format. "
+        "Use these numbers as factual evidence when answering, but do not mention JSON, keys, or field names explicitly:\n"
+        f"{summary_json}"
     )
 
     try:

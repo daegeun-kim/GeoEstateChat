@@ -76,6 +76,16 @@ body {
   border: 1px solid rgb(75, 75, 75);
   background-color: rgb(16, 16, 19);
   box-sizing: border-box;
+  display: flex;          /* enable horizontal flex layout */
+  flex-direction: row;    /* side-by-side */
+  gap: 16px;              /* optional spacing between charts */
+}
+
+#chart1,
+#chart2 {
+  flex: 1 1 0;            /* each takes exactly half the space */
+  min-width: 0;           /* prevent overflow */
+  min-height: 0;          /* allow SVG inside to fit */
 }
 
 /* ------------- input-output ------------- */
