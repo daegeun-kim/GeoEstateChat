@@ -1,14 +1,13 @@
 window.renderChart1 = function (containerSelector, values, mode, dtype) {
-  console.log("[chart1] init", { containerSelector, valuesLength: values ? values.length : 0, mode, dtype });
-
+  //----------------------------------------------
+  //---------------------- Setup -----------------
+  //----------------------------------------------
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
   const node = container.node();
   const outerWidth = node ? node.getBoundingClientRect().width : 600;
   const outerHeight = outerWidth * 0.5;
-
-  console.log("[chart1] dimensions", { outerWidth, outerHeight });
 
   const margin = { top: 10, right: 50, bottom: 20, left: 50 };
   const width = outerWidth - margin.left - margin.right;
@@ -23,8 +22,10 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
+  //----------------------------------------------
+  //---------------------- Helpers ---------------
+  //----------------------------------------------
   function addYGrid(svg, y, width) {
-    console.log("[chart1] addYGrid");
     svg.append("g")
       .attr("class", "grid-y")
       .call(
@@ -38,7 +39,6 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
   }
 
   function addXGridNumeric(svg, x, height) {
-    console.log("[chart1] addXGridNumeric");
     svg.append("g")
       .attr("class", "grid-x")
       .attr("transform", `translate(0,0)`)
@@ -53,7 +53,6 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
   }
 
   function addXGridCategorical(svg, x, height) {
-    console.log("[chart1] addXGridCategorical");
     svg.append("g")
       .attr("class", "grid-x")
       .attr("transform", `translate(0,0)`)
@@ -67,7 +66,6 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
   }
 
   function drawXAxisNumeric(svg, x, height) {
-    console.log("[chart1] drawXAxisNumeric");
     svg
       .append("g")
       .attr("transform", `translate(0,${height})`)
@@ -78,7 +76,6 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
   }
 
   function drawXAxisCategorical(svg, x, height) {
-    console.log("[chart1] drawXAxisCategorical");
     svg
       .append("g")
       .attr("transform", `translate(0,${height})`)
@@ -89,7 +86,6 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
   }
 
   function drawYAxis(svg, y) {
-    console.log("[chart1] drawYAxis");
     svg
       .append("g")
       .call(d3.axisLeft(y).ticks(5))
@@ -99,7 +95,6 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
   }
 
   function drawFrame(svg, width, height) {
-    console.log("[chart1] drawFrame");
     svg.append("line")
       .attr("x1", 0)
       .attr("x2", width)
@@ -117,14 +112,12 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
       .attr("stroke-width", 1);
   }
 
+  //----------------------------------------------
+  //---------- Numeric histogram (analyze) -------
+  //----------------------------------------------
   if ((mode === "analyze" || mode === "search") && dtype === "numeric") {
-    console.log("[chart1] numeric branch", { mode, dtype });
     const clean = values.filter(v => Number.isFinite(v));
-    console.log("[chart1] numeric clean length:", clean.length);
-    if (!clean.length) {
-      console.warn("[chart1] numeric: no clean values");
-      return;
-    }
+    if (!clean.length) return;
 
     const sortedAll = clean.slice().sort((a, b) => a - b);
     const pctAll = p => {
@@ -145,10 +138,8 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
       p97: pctAll(97),
       max: sortedAll[sortedAll.length - 1]
     };
-    console.log("[chart1] numeric statsAll:", statsAll);
 
     const positives = clean.filter(v => v > 0);
-    console.log("[chart1] numeric positives length:", positives.length);
     let scaleType = "linear";
 
     if (positives.length >= 30 && positives.length / clean.length >= 0.8) {
@@ -165,16 +156,13 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
       const maxPos = arr[arr.length - 1];
       const medianPos = pctPos(50);
       const ratio = (medianPos - minPos) / (maxPos - minPos || 1);
-      console.log("[chart1] numeric positives stats:", { minPos, maxPos, medianPos, ratio });
       if (ratio < 0.2) scaleType = "log";
     }
 
-    console.log("[chart1] numeric scaleType:", scaleType);
     const used = scaleType === "log" && positives.length ? positives : clean;
     let minVal = d3.min(used);
     let maxVal = d3.max(used);
     if (minVal === maxVal) maxVal = minVal * 1.01;
-    console.log("[chart1] numeric domain:", { minVal, maxVal });
 
     const x =
       scaleType === "log"
@@ -196,13 +184,11 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
         const bucket = used.filter(v => v >= x0 && (i === N - 1 ? v <= x1 : v < x1));
         bins.push(Object.assign(bucket, { x0, x1, length: bucket.length }));
       }
-      console.log("[chart1] numeric log bins count:", bins.length);
     } else {
       bins = d3
         .bin()
         .domain([minVal, maxVal])
         .thresholds(200)(used);
-      console.log("[chart1] numeric linear bins count:", bins.length);
     }
 
     const y = d3
@@ -236,7 +222,6 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
           "#9700eeff"
         ]);
     }
-    console.log("[chart1] numeric colorScale defined:", !!colorScale);
 
     addYGrid(svg, y, width);
     addXGridNumeric(svg, x, height);
@@ -255,97 +240,90 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
         const mid = (d.x0 + d.x1) / 2;
         return colorScale(mid);
       });
+      // .attr("opacity", 0.8);
 
     drawXAxisNumeric(svg, x, height);
     drawYAxis(svg, y);
     drawFrame(svg, width, height);
-    console.log("[chart1] numeric render complete");
     return;
   }
 
-  if ((mode === "analyze" || mode === "search") && dtype === "categorical") {
-    console.log("[chart1] categorical branch", { mode, dtype });
-    const cleanCat = values.filter(v => v != null && v !== "");
-    console.log("[chart1] categorical clean length:", cleanCat.length);
-    if (!cleanCat.length) {
-      console.warn("[chart1] categorical: no clean values");
-      return;
+  //----------------------------------------------
+  //-------- Categorical histogram (analyze) -----
+  //----------------------------------------------
+  if (mode === "analyze" && dtype === "categorical") {
+  const cleanCat = values.filter(v => v != null && v !== "");
+  if (!cleanCat.length) return;
+
+  const counts = d3.rollups(
+    cleanCat,
+    v => v.length,
+    d => d
+  ).sort((a, b) => d3.descending(a[1], b[1]));
+
+  const x = d3
+    .scaleBand()
+    .domain(counts.map(d => String(d[0])))
+    .range([0, width])
+    .padding(0.1);
+
+  const y = d3
+    .scaleLinear()
+    .domain([0, d3.max(counts, d => d[1]) || 1])
+    .nice()
+    .range([height, 0]);
+
+  const baseColors = [
+    "#ff7474ff",
+    "#55dce6ff",
+    "#3986ebff",
+    "#ddc763ff",
+    "#76df84ff",
+    "#7652b9ff",
+    "#a300eeff",
+    "#ff7a62ff",
+    "#f3e962ff",
+    "#00c896ff"
+  ];
+
+  const colorByCat = new Map();
+  counts.forEach((d, i) => {
+    const key = String(d[0]);
+    if (i < 10) {
+      colorByCat.set(key, baseColors[i]);
+    } else {
+      const r = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+      const g = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+      const b = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+      colorByCat.set(key, `#${r}${g}${b}`);
     }
+  });
 
-    const counts = d3.rollups(
-      cleanCat,
-      v => v.length,
-      d => d
-    ).sort((a, b) => d3.descending(a[1], b[1]));
-    console.log("[chart1] categorical counts length:", counts.length);
+  addYGrid(svg, y, width);
+  addXGridCategorical(svg, x, height);
 
-    const x = d3
-      .scaleBand()
-      .domain(counts.map(d => String(d[0])))
-      .range([0, width])
-      .padding(0.1);
+  const maxBarWidth = 50;
 
-    const y = d3
-      .scaleLinear()
-      .domain([0, d3.max(counts, d => d[1]) || 1])
-      .nice()
-      .range([height, 0]);
+  svg
+    .selectAll("rect")
+    .data(counts)
+    .enter()
+    .append("rect")
+    .attr("x", d => {
+      const bw = x.bandwidth();
+      const w = Math.min(bw * 0.6, maxBarWidth);
+      return x(String(d[0])) + (bw - w) / 2;
+    })
+    .attr("y", d => y(d[1]))
+    .attr("width", d => {
+      const bw = x.bandwidth();
+      return Math.min(bw * 0.6, maxBarWidth);
+    })
+    .attr("height", d => height - y(d[1]))
+    .attr("fill", d => colorByCat.get(String(d[0])) || "#ffffff");
 
-    const baseColors = [
-      "#ff7474ff",
-      "#55dce6ff",
-      "#3986ebff",
-      "#ddc763ff",
-      "#76df84ff",
-      "#7652b9ff",
-      "#a300eeff",
-      "#ff7a62ff",
-      "#f3e962ff",
-      "#00c896ff"
-    ];
-
-    const colorByCat = new Map();
-    counts.forEach((d, i) => {
-      const key = String(d[0]);
-      if (i < 10) {
-        colorByCat.set(key, baseColors[i]);
-      } else {
-        const r = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
-        const g = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
-        const b = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
-        colorByCat.set(key, `#${r}${g}${b}`);
-      }
-    });
-    console.log("[chart1] categorical colorByCat size:", colorByCat.size);
-
-    addYGrid(svg, y, width);
-    addXGridCategorical(svg, x, height);
-
-    const maxBarWidth = 50;
-
-    svg
-      .selectAll("rect")
-      .data(counts)
-      .enter()
-      .append("rect")
-      .attr("x", d => {
-        const bw = x.bandwidth();
-        const w = Math.min(bw * 0.6, maxBarWidth);
-        return x(String(d[0])) + (bw - w) / 2;
-      })
-      .attr("y", d => y(d[1]))
-      .attr("width", d => {
-        const bw = x.bandwidth();
-        return Math.min(bw * 0.6, maxBarWidth);
-      })
-      .attr("height", d => height - y(d[1]))
-      .attr("fill", d => colorByCat.get(String(d[0])) || "#ffffff");
-
-    drawXAxisCategorical(svg, x, height);
-    drawYAxis(svg, y);
-    drawFrame(svg, width, height);
-    console.log("[chart1] categorical render complete");
-  } else {
-    console.log("[chart1] no matching branch for mode/dtype", { mode, dtype });
+  drawXAxisCategorical(svg, x, height);
+  drawYAxis(svg, y);
+  drawFrame(svg, width, height);
   }
 };

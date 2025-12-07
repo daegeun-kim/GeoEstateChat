@@ -4,7 +4,10 @@ db: PostgreSQL 16 + PostGIS
 tables:
     buildings:
         spine: [borocode, large_n, small_n, shape_area, shape_leng, geom]
-        cat: [zoning, bldg_class, elevator]
+        cat: 
+            zoning
+            bldg_class
+            elevator : True or False (boolean)
         num:
             built_year
             ground_ele : ground elevation (ft)

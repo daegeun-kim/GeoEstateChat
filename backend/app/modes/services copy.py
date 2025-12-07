@@ -8,35 +8,26 @@ from ..llm.llm_client import call_llm
 from ..db import get_data_analyze, get_data_search, get_data_search_final, get_data_compare
 from ..llm.llm_explain import llm_explain
 
-
 def create_summary(gdf, column: str, scale, region, dtype):
-    print("[create_summary] dtype:", dtype, "column:", column, "scale:", scale, "region:", region)
-
     if dtype == 'numeric':
         if gdf is None or column is None or column not in gdf.columns:
-            result = {
+            return {
                 "count": 0,
                 "mean": None,
                 "median": None,
                 "min": None,
                 "max": None,
             }
-            print("[create_summary] Numeric: gdf/column invalid, returning:", result)
-            return result
-
         s = gdf[column].dropna()
         if s.empty:
-            result = {
+            return {
                 "count": 0,
                 "mean": None,
                 "median": None,
                 "min": None,
                 "max": None,
             }
-            print("[create_summary] Numeric: empty series, returning:", result)
-            return result
-
-        result = {
+        return {
             "data": column,
             "scale of analysis": scale,
             "region": region,
@@ -46,51 +37,30 @@ def create_summary(gdf, column: str, scale, region, dtype):
             "min": float(s.min()),
             "max": float(s.max()),
         }
-        print("[create_summary] Numeric: summary:", result)
-        return result
 
     elif dtype == 'categorical':
         if gdf is None or column is None or column not in gdf.columns:
-            result = {
+            return {
                 "count": 0,
                 "categories": {},
             }
-            print("[create_summary] Categorical: gdf/column invalid, returning:", result)
-            return result
-
         s = gdf[column].dropna()
         if s.empty:
-            result = {
+            return {
                 "count": 0,
                 "categories": {},
             }
-            print("[create_summary] Categorical: empty series, returning:", result)
-            return result
-
         category_counts = s.value_counts().to_dict()
-        result = {
+        return {
             "data": column,
             "scale of analysis": scale,
             "region": region,
             "count": int(s.count()),
             "categories": category_counts,
         }
-        print("[create_summary] Categorical: summary:", result)
-        return result
-
-    else:
-        result = {
-            "count": 0,
-        }
-        print("[create_summary] Unsupported dtype, returning:", result)
-        return result
-
 
 def run_analyze(query: str, history: Optional[List[Dict[str, str]]] = None):
-    print("[run_analyze] Incoming query:", query)
-
     if history:
-        print("[run_analyze] History provided with", len(history), "messages")
         history_parts = []
         for m in history:
             role = m.get("role", "")
@@ -107,18 +77,12 @@ def run_analyze(query: str, history: Optional[List[Dict[str, str]]] = None):
         history_text = "\n\n".join(history_parts)
         combined_query = f"Previous conversation:\n{history_text}\n\nNew query:\n{query}"
     else:
-        print("[run_analyze] No history")
         combined_query = query
 
-    print("[run_analyze] Combined query ready")
     messages = build_analyze_plan(combined_query)
-    print("[run_analyze] Messages for plan built")
-
     plan, usage, plan_error = call_llm(messages)
-    print("[run_analyze] Plan received. error:", plan_error, "usage:", usage)
 
     if plan_error or not plan:
-        print("[run_analyze] Plan error or empty plan, returning fallback")
         return {
             "geojson": None,
             "column": None,
@@ -139,59 +103,45 @@ def run_analyze(query: str, history: Optional[List[Dict[str, str]]] = None):
     region = plan.get("region")
     table = plan.get("table")
     filters = plan.get("filters") or []
-    print("[run_analyze] Plan parsed:",
-        "column:", column,
-        "dtype:", dtype,
-        "scale:", scale,
-        "region:", region,
-        "table:", table,
-        "filters:", filters)
 
     db_result = get_data_analyze(column=column, scale=scale, table=table, filters=filters)
     gdf = db_result["gdf"]
     db_error = db_result["error"]
-    print("[run_analyze] DB result. error:", db_error, "gdf is None:", gdf is None)
 
-    summary = create_summary(gdf=gdf, column=column, scale=scale, region=region, dtype=dtype)
-    print("[run_analyze] Summary created")
+    summary = create_summary(gdf=gdf, column=column, scale=scale, region=region, dtype=dtype, filters=filters)
 
     try:
         explanation = llm_explain(query=query, summary=summary)
-        print("[run_analyze] Explanation created")
     except Exception as e:
-        print("[run_analyze] llm_explain crashed:", e)
+        print("llm_explain crashed:", e)
         traceback.print_exc()
         explanation = f"[llm_explain error: {e}]"
 
     if gdf is not None:
-        geojson = json.loads(gdf.to_json())
-        print("[run_analyze] GeoJSON created with", len(geojson.get("features", [])), "features")
+        geojson = json.loads(gdf.to_json())   # dict
     else:
         geojson = None
-        print("[run_analyze] GeoJSON is None (no gdf)")
 
-    print("[run_analyze] Usage:", usage)
+    print(usage)
     return {
         "mode": "analyze",
-        "geojson": geojson,
-        "column": column,
+        "geojson": geojson, 
+        "column": column, 
         "dtype": dtype,
         "scale": scale,
-        "region": region,
-        "table": table,
+        "region": region, 
+        "table": table, 
         "filters": filters,
-        "summary": summary,
-        "explanation": explanation,
-        "usage": usage,
-        "error": db_error,
+        "summary": summary, 
+        "explanation": explanation, 
+        "usage": usage,  
+        "error": db_error,   
     }
 
 
-def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
-    print("[run_search] Incoming query:", query)
 
+def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
     if history:
-        print("[run_search] History provided with", len(history), "messages")
         history_parts = []
         for m in history:
             role = m.get("role", "")
@@ -208,18 +158,12 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
         history_text = "\n\n".join(history_parts)
         combined_query = f"Previous conversation:\n{history_text}\n\nNew query:\n{query}"
     else:
-        print("[run_search] No history")
         combined_query = query
 
-    print("[run_search] Combined query ready")
     messages = build_search_plan(combined_query)
-    print("[run_search] Messages for plan built")
-
     plan, usage, plan_error = call_llm(messages)
-    print("[run_search] Plan received. error:", plan_error, "usage:", usage)
 
     if plan_error or not plan:
-        print("[run_search] Plan error or empty plan, returning fallback")
         return {
             "geojson": None,
             "column": None,
@@ -232,11 +176,9 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
         }
 
     if isinstance(plan, str):
-        print("[run_search] Plan is string, attempting json.loads")
         try:
             plan = json.loads(plan)
         except Exception as e:
-            print("[run_search] PLAN_JSON_ERROR:", e)
             return {
                 "geojson": None,
                 "column": None,
@@ -257,18 +199,7 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
     region = plan.get("region")
     filters = plan.get("filters") or []
 
-    print("[run_search] Plan parsed:",
-        "column_s:", column_s,
-        "column_b:", column_b,
-        "dtype:", dtype,
-        "scale:", scale,
-        "analysis:", analysis,
-        "order:", order,
-        "region:", region,
-        "filters:", filters)
-
     if not column_s or not analysis:
-        print("[run_search] Missing column_s or analysis, returning error")
         return {
             "geojson": None,
             "column_s": column_s,
@@ -283,10 +214,8 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
     db_result = get_data_search(column=column_s)
     gdf = db_result["gdf"]
     db_error = db_result["error"]
-    print("[run_search] DB result. error:", db_error, "gdf is None:", gdf is None)
 
     if db_error or gdf is None or gdf.empty:
-        print("[run_search] DB error or no data, returning")
         return {
             "geojson": None,
             "column_s": column_s,
@@ -304,7 +233,6 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
         group_col = "borocode"
     else:
         group_col = "large_n"
-    print("[run_search] Group column:", group_col)
 
     if analysis == "mean":
         agg_func = "mean"
@@ -316,13 +244,10 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
         agg_func = "max"
     else:
         agg_func = "mean"
-    print("[run_search] Aggregation function:", agg_func)
 
     grouped = getattr(gdf.groupby(group_col, dropna=False)[column_s], agg_func)().reset_index(name="metric")
-    print("[run_search] Grouped rows:", len(grouped))
 
     if grouped.empty:
-        print("[run_search] Grouped data empty, returning")
         return {
             "geojson": None,
             "column_s": column_s,
@@ -336,28 +261,22 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
 
     if not order or order == "NO_MATCH":
         order = "descending"
+
     ascending = str(order).lower().startswith("asc")
-    print("[run_search] Order:", order, "ascending:", ascending)
-
     gdf_analyze = grouped.sort_values("metric", ascending=ascending)
-    neighborhood = gdf_analyze.iloc[0][group_col]
-    print("[run_search] Selected neighborhood:", neighborhood)
 
-    if scale == "borough":
+    neighborhood = gdf_analyze.iloc[0][group_col]
+    if scale=="borough":
         db_final = get_data_search_final(column=column_s, scale=scale, neighborhood=neighborhood)
-    elif scale == "large_n":
+    elif scale=="large_n":
         db_final = get_data_search_final(column=column_b, scale=scale, neighborhood=neighborhood)
-    else:
-        db_final = get_data_search_final(column=column_s, scale=scale, neighborhood=neighborhood)
     gdf_final = db_final["gdf"]
     db_final_error = db_final["error"]
-    print("[run_search] Final DB result. error:", db_final_error, "gdf_final is None:", gdf_final is None)
 
     if db_final_error or gdf_final is None or gdf_final.empty:
-        print("[run_search] Final DB error or no data, returning")
         return {
             "geojson": None,
-            "column": column_s if scale == "borough" else column_b,
+            "column": column_s if scale=="borough" else column_b, 
             "dtype": dtype,
             "scale": scale,
             "summary": None,
@@ -366,26 +285,22 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
             "error": db_final_error or "NO_FINAL_DATA",
         }
 
-    summary = create_summary(gdf=gdf_final, column=column_s if scale == "borough" else column_b,
-                            scale=scale, region=neighborhood, dtype=dtype)
-    print("[run_search] Summary created")
+    summary = create_summary(gdf=gdf, column=column_b, scale=scale, region=region, dtype=dtype)
 
     try:
         explanation = llm_explain(query=query, summary=summary)
-        print("[run_search] Explanation created")
     except Exception as e:
-        print("[run_search] llm_explain crashed:", e)
+        print("llm_explain crashed:", e)
         traceback.print_exc()
         explanation = f"[llm_explain error: {e}]"
 
     geojson = json.loads(gdf_final.to_json())
-    print("[run_search] GeoJSON created with", len(geojson.get("features", [])), "features")
 
-    print("[run_search] Usage:", usage)
+    print(usage)
     return {
         "mode": "search",
         "geojson": geojson,
-        "column": column_s if scale == "borough" else column_b,
+        "column": column_s if scale=="borough" else column_b, 
         "dtype": dtype,
         "scale": scale,
         "region": None,
@@ -398,11 +313,10 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
     }
 
 
-def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
-    print("[run_compare] Incoming query:", query)
 
+
+def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
     if history:
-        print("[run_compare] History provided with", len(history), "messages")
         history_parts = []
         for m in history:
             role = m.get("role", "")
@@ -419,18 +333,12 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
         history_text = "\n\n".join(history_parts)
         combined_query = f"Previous conversation:\n{history_text}\n\nNew query:\n{query}"
     else:
-        print("[run_compare] No history")
         combined_query = query
 
-    print("[run_compare] Combined query ready")
     messages = build_compare_plan(combined_query)
-    print("[run_compare] Messages for plan built")
-
     plan, usage, plan_error = call_llm(messages)
-    print("[run_compare] Plan received. error:", plan_error, "usage:", usage)
 
     if plan_error or not plan:
-        print("[run_compare] Plan error or empty plan, returning fallback")
         return {
             "mode": "compare",
             "geojson": [None, None],
@@ -454,15 +362,6 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
     table = plan.get("table")
     filters = plan.get("filters") or []
 
-    print("[run_compare] Plan parsed:",
-        "column:", column,
-        "dtype:", dtype,
-        "scale:", scale,
-        "region1:", region1,
-        "region2:", region2,
-        "table:", table,
-        "filters:", filters)
-
     db_result = get_data_compare(
         column=column,
         scale=scale,
@@ -473,10 +372,8 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
     )
     gdf = db_result["gdf"]
     db_error = db_result["error"]
-    print("[run_compare] DB result. error:", db_error, "gdf is None:", gdf is None)
 
     if db_error or gdf is None:
-        print("[run_compare] DB error or gdf is None, returning")
         return {
             "mode": "compare",
             "geojson": [None, None],
@@ -499,7 +396,6 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
         gdf1 = gdf[gdf["large_n"] == region1]
         gdf2 = gdf[gdf["large_n"] == region2]
     else:
-        print("[run_compare] Invalid scale:", scale)
         return {
             "mode": "compare",
             "geojson": [None, None],
@@ -515,18 +411,14 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
             "error": f"INVALID_SCALE_{scale}",
         }
 
-    print("[run_compare] gdf1 rows:", len(gdf1), "gdf2 rows:", len(gdf2))
-
-    summary1 = create_summary(gdf=gdf1, column=column, scale=scale, region=region1, dtype=dtype)
-    summary2 = create_summary(gdf=gdf2, column=column, scale=scale, region=region2, dtype=dtype)
-    print("[run_compare] Summaries created for both regions")
+    summary1 = create_summary(gdf=gdf1, column=column, scale=scale, region=region1, dtype=dtype, filters=filters)
+    summary2 = create_summary(gdf=gdf2, column=column, scale=scale, region=region2, dtype=dtype, filters=filters)
 
     try:
         explanation1 = llm_explain(query=query, summary=summary1)
         explanation2 = llm_explain(query=query, summary=summary2)
-        print("[run_compare] Explanations created for both regions")
     except Exception as e:
-        print("[run_compare] llm_explain crashed:", e)
+        print("llm_explain crashed:", e)
         traceback.print_exc()
         explanation1 = f"[llm_explain error: {e}]"
         explanation2 = f"[llm_explain error: {e}]"
@@ -534,14 +426,8 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
     geojson0 = json.loads(gdf.to_json()) if gdf is not None else None
     geojson1 = json.loads(gdf1.to_json()) if gdf1 is not None else None
     geojson2 = json.loads(gdf2.to_json()) if gdf2 is not None else None
-    print("[run_compare] GeoJSON created. total:",
-        len(geojson0.get("features", [])) if geojson0 else 0,
-        "region1:",
-        len(geojson1.get("features", [])) if geojson1 else 0,
-        "region2:",
-        len(geojson2.get("features", [])) if geojson2 else 0)
 
-    print("[run_compare] Usage:", usage)
+    print(usage)
     return {
         "mode": "compare",
         "geojson": [geojson0, geojson1, geojson2],
@@ -558,17 +444,16 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
     }
 
 
+
+
+
+
 def run(query: str):
-    print("[run] Top-level run called with query:", query)
     try:
         messages = select_mode(query)
-        print("[run] Mode selection messages built")
-
         mode_json, usage_mode, mode_error = call_llm(messages)
-        print("[run] Mode selection result. error:", mode_error, "usage:", usage_mode, "mode_json:", mode_json)
 
         if mode_error or not mode_json:
-            print("[run] Mode error or empty mode_json, returning fallback")
             return {
                 "mode": None,
                 "geojson": None,
@@ -585,7 +470,6 @@ def run(query: str):
             }
 
         mode = mode_json.get("mode")
-        print("[run] Selected mode:", mode)
 
         if mode == "analyze":
             result = run_analyze(query)
@@ -594,7 +478,6 @@ def run(query: str):
         elif mode == "compare":
             result = run_compare(query)
         else:
-            print("[run] Mode not implemented:", mode)
             return {
                 "mode": None,
                 "geojson": None,
@@ -610,13 +493,11 @@ def run(query: str):
                 "error": f"mode '{mode}' not implemented",
             }
 
-        print("[run] Sub-mode result received, attaching mode and mode_usage")
         result["mode"] = mode
         result["mode_usage"] = usage_mode
         return result
 
     except Exception as e:
-        print("[run] Exception in top-level run:", e)
         traceback.print_exc()
         return {
             "mode": None,

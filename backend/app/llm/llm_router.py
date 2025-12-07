@@ -1,5 +1,7 @@
 import os
 import json
+from typing import List, Optional
+
 from openai import OpenAI
 from dotenv import load_dotenv
 from .llm_prompt import DB_SCHEMA_analyze
@@ -10,7 +12,7 @@ client = OpenAI(api_key=api_key)
 
 
 
-def select_mode(query: str) -> list:
+def select_mode(combined_query: str) -> list:
     return [
         {
             "role": "system",
@@ -24,21 +26,23 @@ def select_mode(query: str) -> list:
                 "Return JSON only: {\"mode\":\"...\"}."
             )
         },
-        {"role": "user", "content": query}
+        {"role": "user", "content": combined_query}
     ]
 
 
-def build_analyze_plan(query: str) -> list:
+def build_analyze_plan(combined_query: str) -> list:
     return [
         {
             "role": "system",
             "content": (
                 "You map a natural language query to a structured analysis plan.\n"
                 "Return JSON only, with exactly keys: (column, dtype, scale, region, table, filters)\n"
+                "The 'combined_query' text may optionally include previous conversation context plus the user's current question; "
+                "base your plan on the user's latest intent and corrections.\n"
                 "Rules:\n"
-                "- column should be the most relevant column based on the query(must exist in the chosen table and match dtype.)\n"
+                "- column should be the most relevant column based on the combined_query from the choice of table(must exist in the chosen table and match dtype.)\n"
                 "- dtype is inferred from DB_SCHEMA.(\"numeric|categorical\")\n"
-                "- scale = \"large_n\" if a value of large_n can be specified or inferred.\n"
+                "- scale = \"large_n\" if a value of large_n can be specified or inferred based on combined_query by any mean.\n"
                 "- If scale = \"city\": region = null, filters should not include borocode or large_n.\n"
                 "- If scale = \"borough\":\n"
                 "  region is borocode (int, 1-5) and filters must include [\"borocode\", \"=\", region],and does not include [\"large_n\", \"=\", region].\n"
@@ -50,6 +54,7 @@ def build_analyze_plan(query: str) -> list:
                 "- Allowed ops in filters: \"=\", \">\", \"<\", \">=\", \"<=\".\n"
                 "- Never use 'geom' as column.\n"
                 "- If unsure, set column = \"NO_MATCH\" but better avoid.\n"
+                "- Every text for item inside json should be based on schema, do not fabricate text."
                 "\n"
                 "Examples response for queries:\n"
                 "Query: \"in Midtown Manhattan, show buildings above 100m\"\n"
@@ -61,17 +66,19 @@ def build_analyze_plan(query: str) -> list:
         },
         {
             "role": "user",
-            "content": f"Schema:\n{DB_SCHEMA_analyze}\n\nQuery:\n{query}",
+            "content": f"Schema:\n{DB_SCHEMA_analyze}\n\nQuery:\n{combined_query}",
         },
     ]
 
 
-def build_search_plan(query: str) -> list:
+def build_search_plan(combined_query: str) -> list:
     return [
         {
             "role": "system",
             "content": (
                 "Map the query to two columns:\n"
+                "The 'Query' text may optionally include previous conversation context plus the user's current question; "
+                "base your plan on the user's latest intent and corrections.\n"
                 "- column_s: from street_block\n"
                 "- column_b: from buildings\n"
                 "Both must represent the SAME variable (height, value, density, etc.).\n"
@@ -100,12 +107,12 @@ def build_search_plan(query: str) -> list:
         },
         {
             "role": "user",
-            "content": f"Schema:\n{DB_SCHEMA_analyze}\n\nQuery:\n{query}",
+            "content": f"Schema:\n{DB_SCHEMA_analyze}\n\nQuery:\n{combined_query}",
         },
     ]
 
 
-def build_compare_plan(query: str) -> list:
+def build_compare_plan(combined_query: str) -> list:
     return [
         {
             "role": "system",
@@ -123,6 +130,8 @@ def build_compare_plan(query: str) -> list:
                 "\"filters\":[[\"col\",\"op\",\"value\"], ...]"
                 "}\n"
                 "\n"
+                "The 'Query' text may optionally include previous conversation context plus the user's current question; "
+                "base your plan on the user's latest intent and corrections.\n"
                 "Rules:\n"
                 "- column must exist in the chosen table and match dtype.\n"
                 "- dtype is inferred from DB_SCHEMA.\n"
@@ -150,6 +159,6 @@ def build_compare_plan(query: str) -> list:
         },
         {
             "role": "user",
-            "content": f"Schema:\n{DB_SCHEMA_analyze}\n\nQuery:\n{query}",
+            "content": f"Schema:\n{DB_SCHEMA_analyze}\n\nQuery:\n{combined_query}",
         },
     ]

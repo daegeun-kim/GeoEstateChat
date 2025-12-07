@@ -72,19 +72,17 @@ def get_data_search_final(column, scale, neighborhood):
         print("missing scale or neighborhood")
         return {"gdf": None, "error": "missing scale or neighborhood"}
     
-    try:
+    if scale == "borough":
         neighborhood = int(neighborhood)
-    except Exception:
-        pass
 
     params = None
 
     if scale == "large_n":
-        sql = f"SELECT {column}, small_n, geom FROM public.buildings WHERE large_n = %s"
+        sql = f"SELECT {column}, large_n, small_n, geom FROM public.buildings WHERE large_n = %s"
         params = (neighborhood,)
         print("column:", column, "scale:", scale, "neighborhood:", neighborhood)
     elif scale == "borough":
-        sql = f"SELECT {column}, large_n, geom FROM public.street_block WHERE borocode = %s"
+        sql = f"SELECT {column}, borocode, large_n, geom FROM public.street_block WHERE borocode = %s"
         params = (neighborhood,)
         print("column:", column, "scale:", scale, "neighborhood:", neighborhood)
     else:
