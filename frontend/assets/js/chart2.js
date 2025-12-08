@@ -26,9 +26,9 @@ window.renderChart2 = function (containerSelector, features, columnName, scale, 
       null;
 
   //--------------------------------------------------------------------
-  //----------------- Analyze + Numeric: Mean ranking ------------------
+  //-------------- Analyze/Search + Numeric: Mean ranking --------------
   //--------------------------------------------------------------------
-  if (mode === "analyze" && dtype === "numeric") {
+  if ((mode === "analyze" || mode === "search") && dtype === "numeric") {
 
     console.log("[chart2] analyze+numeric", {
       scale,
@@ -172,158 +172,11 @@ window.renderChart2 = function (containerSelector, features, columnName, scale, 
       .attr("stroke-width", 1);
   }
 
-  //--------------------------------------------------------------------
-  //----------------- Search + Numeric: Mean ranking ------------------
-  //--------------------------------------------------------------------
-  if (mode === "search" && dtype === "numeric") {
-    
-    console.log("[chart2] search+numeric", {
-      scale,
-      neighborhoodField,
-      hasFeatures: !!features,
-      featureCount: features ? features.length : 0
-    });
-
-    if (!neighborhoodField) {
-      console.warn("[chart2] search+numeric: no neighborhoodField, abort");
-      return;
-    }
-    if (!features || !features.length) {
-      console.warn("[chart2] search+numeric: no features, abort");
-      return;
-    }
-
-    const cleanFeatures = features.filter(f =>
-      f &&
-      f.properties &&
-      f.properties[neighborhoodField] != null &&
-      Number.isFinite(+f.properties[columnName])
-    );
-    console.log("[chart2] search+numeric cleanFeatures:", cleanFeatures.length);
-    if (!cleanFeatures.length) return;
-
-    const grouped = d3.rollup(
-      cleanFeatures,
-      v => d3.mean(v, f => +f.properties[columnName]),
-      f => f.properties[neighborhoodField]
-    );
-
-    let data = Array.from(grouped, ([name, value]) => ({ name, value }));
-    data = data.filter(d => d.name && Number.isFinite(d.value));
-    console.log("[chart2] search+numeric groups after filter:", data.length);
-    if (!data.length) return;
-
-    data.sort((a, b) => b.value - a.value);
-    data = data.slice(0, 10);
-
-    const svg = container
-      .append("svg")
-      .attr("viewBox", `0 0 ${outerWidth} ${outerHeight}`)
-      .attr("preserveAspectRatio", "xMidYMid meet")
-      .style("width", "100%")
-      .style("height", "100%")
-      .append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
-
-    const maxVal = d3.max(data, d => d.value) || 1;
-
-    const x = d3
-      .scaleLinear()
-      .domain([0, maxVal])
-      .nice()
-      .range([0, width]);
-
-    const y = d3
-      .scaleBand()
-      .domain(data.map(d => d.name))
-      .range([0, height])
-      .padding(0.3);
-
-    svg.append("g")
-      .attr("class", "grid-y")
-      .call(
-        d3.axisLeft(y)
-          .tickSize(-width)
-          .tickFormat("")
-      )
-      .call(g => g.selectAll("line").attr("stroke", "#202020"))
-      .call(g => g.selectAll("path").remove());
-
-    svg.append("g")
-      .attr("class", "grid-x")
-      .attr("transform", `translate(0,0)`)
-      .call(
-        d3.axisBottom(x)
-          .ticks(6)
-          .tickSize(height)
-          .tickFormat("")
-      )
-      .call(g => g.selectAll("line").attr("stroke", "#202020"))
-      .call(g => g.selectAll("path").remove());
-
-    svg
-      .selectAll("rect")
-      .data(data)
-      .enter()
-      .append("rect")
-      .attr("x", 0)
-      .attr("y", d => y(d.name))
-      .attr("width", d => x(d.value))
-      .attr("height", y.bandwidth())
-      .attr("fill", "#afbec4ff");
-
-    const xAxis = svg
-      .append("g")
-      .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x).ticks(6));
-
-    xAxis.selectAll("text")
-      .attr("fill", "#d6d6d6")
-      .style("font-size", "11px");
-
-    xAxis.selectAll("line")
-      .attr("stroke", "#adadad");
-
-    xAxis.selectAll("path")
-      .attr("stroke", "#adadad");
-
-    const yAxis = svg
-      .append("g")
-      .call(d3.axisLeft(y));
-
-    yAxis.selectAll("text")
-      .attr("fill", "#d6d6d6")
-      .style("font-size", "11px")
-      .call(wrapText, margin.left - 20);
-
-    yAxis.selectAll("line")
-      .attr("stroke", "#adadad");
-
-    yAxis.selectAll("path")
-      .attr("stroke", "#adadad");
-
-    svg.append("line")
-      .attr("x1", 0)
-      .attr("x2", width)
-      .attr("y1", 0)
-      .attr("y2", 0)
-      .attr("stroke", "#353535")
-      .attr("stroke-width", 1);
-
-    svg.append("line")
-      .attr("x1", width)
-      .attr("x2", width)
-      .attr("y1", 0)
-      .attr("y2", height)
-      .attr("stroke", "#353535")
-      .attr("stroke-width", 1);
-  }
-
 
   //--------------------------------------------------------------------
-  //--------- Analyze + Categorical: 100% stacked horizontal bars -------
+  //---- Analyze/Search + Categorical: 100% stacked horizontal bars ----
   //--------------------------------------------------------------------
-  if (mode === "analyze" && dtype === "categorical") {
+  if ((mode === "analyze" || mode === "search") && dtype === "categorical") {
     console.log("[chart2] analyze+categorical", {
       featureCount: features ? features.length : 0
     });

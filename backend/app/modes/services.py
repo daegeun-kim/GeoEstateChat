@@ -250,7 +250,8 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
 
     column_s = plan.get("column_s")
     column_b = plan.get("column_b")
-    dtype = plan.get("dtype")
+    dtype_s = plan.get("dtype_s")
+    dtype_b = plan.get("dtype_b")
     scale = plan.get("scale") or "large_n"
     analysis = plan.get("analysis")
     order = plan.get("order")
@@ -260,7 +261,8 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
     print("[run_search] Plan parsed:",
         "column_s:", column_s,
         "column_b:", column_b,
-        "dtype:", dtype,
+        "dtype_s:", dtype_s,
+        "dtype_b:", dtype_b,
         "scale:", scale,
         "analysis:", analysis,
         "order:", order,
@@ -290,7 +292,8 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
         return {
             "geojson": None,
             "column_s": column_s,
-            "dtype": dtype,
+            "dtype_s": dtype_s,
+            "dtype_b": dtype_b,
             "scale": scale,
             "summary": None,
             "explanation": None,
@@ -326,7 +329,8 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
         return {
             "geojson": None,
             "column_s": column_s,
-            "dtype": dtype,
+            "dtype_s": dtype_s,
+            "dtype_b": dtype_b,
             "scale": scale,
             "summary": None,
             "explanation": None,
@@ -358,16 +362,19 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
         return {
             "geojson": None,
             "column": column_s if scale == "borough" else column_b,
-            "dtype": dtype,
+            "dtype": dtype_s if scale == "borough" else dtype_b,
             "scale": scale,
             "summary": None,
             "explanation": None,
             "usage": usage,
             "error": db_final_error or "NO_FINAL_DATA",
         }
-
-    summary = create_summary(gdf=gdf_final, column=column_s if scale == "borough" else column_b,
-                            scale=scale, region=neighborhood, dtype=dtype)
+    if scale == "borough":
+        summary = create_summary(gdf=gdf_final, column=column_s if scale == "borough" else column_b,
+                            scale=scale, region=neighborhood, dtype=dtype_s)
+    elif scale == "large_n":
+        summary = create_summary(gdf=gdf_final, column=column_s if scale == "borough" else column_b,
+                            scale=scale, region=neighborhood, dtype=dtype_b)
     print("[run_search] Summary created")
 
     try:
@@ -386,7 +393,7 @@ def run_search(query: str, history: Optional[List[Dict[str, str]]] = None):
         "mode": "search",
         "geojson": geojson,
         "column": column_s if scale == "borough" else column_b,
-        "dtype": dtype,
+        "dtype": dtype_s if scale == "borough" else dtype_b,
         "scale": scale,
         "region": None,
         "table": None,
@@ -521,15 +528,18 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
     summary2 = create_summary(gdf=gdf2, column=column, scale=scale, region=region2, dtype=dtype)
     print("[run_compare] Summaries created for both regions")
 
+    combined_summary = {
+        "region1": summary1,
+        "region2": summary2,
+    }
+
     try:
-        explanation1 = llm_explain(query=query, summary=summary1)
-        explanation2 = llm_explain(query=query, summary=summary2)
-        print("[run_compare] Explanations created for both regions")
+        explanation = llm_explain(query=query, summary=combined_summary)
+        print("[run_compare] Explanation created for both regions")
     except Exception as e:
         print("[run_compare] llm_explain crashed:", e)
         traceback.print_exc()
-        explanation1 = f"[llm_explain error: {e}]"
-        explanation2 = f"[llm_explain error: {e}]"
+        explanation = f"[llm_explain error: {e}]"
 
     geojson0 = json.loads(gdf.to_json()) if gdf is not None else None
     geojson1 = json.loads(gdf1.to_json()) if gdf1 is not None else None
@@ -552,7 +562,7 @@ def run_compare(query: str, history: Optional[List[Dict[str, str]]] = None):
         "table": table,
         "filters": filters,
         "summary": [summary1, summary2],
-        "explanation": [explanation1, explanation2],
+        "explanation": explanation,
         "usage": usage,
         "error": db_error,
     }

@@ -65,7 +65,7 @@ body {
   display: none;
   flex-direction: row;
   justify-content: space-between;
-  gap: 6px;
+  /* gap: 6px; */
 }
 
 #map {

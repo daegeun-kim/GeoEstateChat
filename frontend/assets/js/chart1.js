@@ -41,7 +41,7 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
     console.log("[chart1] addXGridNumeric");
     svg.append("g")
       .attr("class", "grid-x")
-      .attr("transform", `translate(0,0)`)
+      .attr("transform", "translate(0,0)")
       .call(
         d3.axisBottom(x)
           .ticks(6)
@@ -56,7 +56,7 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
     console.log("[chart1] addXGridCategorical");
     svg.append("g")
       .attr("class", "grid-x")
-      .attr("transform", `translate(0,0)`)
+      .attr("transform", "translate(0,0)")
       .call(
         d3.axisBottom(x)
           .tickSize(height)
@@ -117,6 +117,9 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
       .attr("stroke-width", 1);
   }
 
+  //--------------------------------------------------------------------
+  //---------------- Analyze/Search + Numeric: Histogram ---------------
+  //--------------------------------------------------------------------
   if ((mode === "analyze" || mode === "search") && dtype === "numeric") {
     console.log("[chart1] numeric branch", { mode, dtype });
     const clean = values.filter(v => Number.isFinite(v));
@@ -166,7 +169,7 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
       const medianPos = pctPos(50);
       const ratio = (medianPos - minPos) / (maxPos - minPos || 1);
       console.log("[chart1] numeric positives stats:", { minPos, maxPos, medianPos, ratio });
-      if (ratio < 0.2) scaleType = "log";
+      if (ratio < 0.15) scaleType = "log";
     }
 
     console.log("[chart1] numeric scaleType:", scaleType);
@@ -232,8 +235,8 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
           "#60faffff",
           "#27a9ffff",
           "#0044ffff",
-          "#9700eeff",
-          "#9700eeff"
+          "#7300ffff",
+          "#b600eeff"
         ]);
     }
     console.log("[chart1] numeric colorScale defined:", !!colorScale);
@@ -263,6 +266,9 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
     return;
   }
 
+  //--------------------------------------------------------------------
+  //------------- Analyze/Search + Categorical: Histogram --------------
+  //--------------------------------------------------------------------
   if ((mode === "analyze" || mode === "search") && dtype === "categorical") {
     console.log("[chart1] categorical branch", { mode, dtype });
     const cleanCat = values.filter(v => v != null && v !== "");
@@ -347,5 +353,396 @@ window.renderChart1 = function (containerSelector, values, mode, dtype) {
     console.log("[chart1] categorical render complete");
   } else {
     console.log("[chart1] no matching branch for mode/dtype", { mode, dtype });
+  }
+
+  //--------------------------------------------------------------------
+  //------------- Compare + Numeric: Histogram --------------
+  //--------------------------------------------------------------------
+  // if (mode === "compare" && dtype === "numeric") {
+  //   console.log("[chart1] compare numeric branch");
+  //   if (!Array.isArray(values) || values.length < 2) {
+  //     console.warn("[chart1] compare numeric: expected [values1, values2]");
+  //     return;
+  //   }
+
+  //   const raw1 = Array.isArray(values[0]) ? values[0] : [];
+  //   const raw2 = Array.isArray(values[1]) ? values[1] : [];
+
+  //   const clean1 = raw1.filter(v => Number.isFinite(v));
+  //   const clean2 = raw2.filter(v => Number.isFinite(v));
+
+  //   if (!clean1.length || !clean2.length) {
+  //     console.warn("[chart1] compare numeric: one of the series is empty");
+  //     return;
+  //   }
+
+  //   const combined = clean1.concat(clean2);
+  //   const sortedAll = combined.slice().sort((a, b) => a - b);
+
+  //   const pctAll = p => {
+  //     const idx = (p / 100) * (sortedAll.length - 1);
+  //     const lo = Math.floor(idx);
+  //     const hi = Math.ceil(idx);
+  //     if (lo === hi) return sortedAll[lo];
+  //     const t = idx - lo;
+  //     return sortedAll[lo] * (1 - t) + sortedAll[hi] * t;
+  //   };
+
+  //   const statsAll = {
+  //     min: sortedAll[0],
+  //     p20: pctAll(20),
+  //     p35: pctAll(35),
+  //     median: pctAll(50),
+  //     p80: pctAll(80),
+  //     p90: pctAll(90),
+  //     p97: pctAll(97),
+  //     max: sortedAll[sortedAll.length - 1]
+  //   };
+  //   console.log("[chart1] compare numeric statsAll:", statsAll);
+
+  //   const positives = combined.filter(v => v > 0);
+  //   let scaleType = "linear";
+
+  //   if (positives.length >= 30 && positives.length / combined.length >= 0.8) {
+  //     const arr = positives.slice().sort((a, b) => a - b);
+  //     const pctPos = p => {
+  //       const idx = (p / 100) * (arr.length - 1);
+  //       const lo = Math.floor(idx);
+  //       const hi = Math.ceil(idx);
+  //       if (lo === hi) return arr[lo];
+  //       const t = idx - lo;
+  //       return arr[lo] * (1 - t) + arr[hi] * t;
+  //     };
+  //     const minPos = arr[0];
+  //     const maxPos = arr[arr.length - 1];
+  //     const medianPos = pctPos(50);
+  //     const ratio = (medianPos - minPos) / (maxPos - minPos || 1);
+  //     console.log("[chart1] compare numeric positives stats:", { minPos, maxPos, medianPos, ratio });
+  //     if (ratio < 0.15) scaleType = "log";
+  //   }
+
+  //   console.log("[chart1] compare numeric scaleType:", scaleType);
+
+  //   const usedCombined = scaleType === "log" && positives.length ? positives : combined;
+  //   const used1 = scaleType === "log" ? clean1.filter(v => v > 0) : clean1;
+  //   const used2 = scaleType === "log" ? clean2.filter(v => v > 0) : clean2;
+
+  //   let minVal = d3.min(usedCombined);
+  //   let maxVal = d3.max(usedCombined);
+  //   if (minVal === maxVal) maxVal = minVal * 1.01;
+  //   console.log("[chart1] compare numeric domain:", { minVal, maxVal });
+
+  //   const x =
+  //     scaleType === "log"
+  //       ? d3.scaleLog().domain([minVal, maxVal]).range([0, width])
+  //       : d3.scaleLinear().domain([minVal, maxVal]).nice().range([0, width]);
+
+  //   let binsCombined;
+  //   if (scaleType === "log") {
+  //     const logMin = Math.log10(minVal);
+  //     const logMax = Math.log10(maxVal);
+  //     const N = 200;
+  //     const edges = d3.range(N + 1).map(i =>
+  //       Math.pow(10, logMin + (i / N) * (logMax - logMin))
+  //     );
+  //     binsCombined = [];
+  //     for (let i = 0; i < N; i++) {
+  //       const x0 = edges[i];
+  //       const x1 = edges[i + 1];
+  //       binsCombined.push({ x0, x1 });
+  //     }
+  //     console.log("[chart1] compare numeric log bins count:", binsCombined.length);
+  //   } else {
+  //     const binGen = d3
+  //       .bin()
+  //       .domain([minVal, maxVal])
+  //       .thresholds(200);
+  //     const tmp = binGen(usedCombined);
+  //     binsCombined = tmp.map(b => ({ x0: b.x0, x1: b.x1 }));
+  //     console.log("[chart1] compare numeric linear bins count:", binsCombined.length);
+  //   }
+
+  //   const bins = binsCombined.map(b => {
+  //     const x0 = b.x0;
+  //     const x1 = b.x1;
+  //     const c1 = used1.filter(v => v >= x0 && v < x1).length;
+  //     const c2 = used2.filter(v => v >= x0 && v < x1).length;
+  //     return { x0, x1, c1, c2 };
+  //   });
+
+  //   const y = d3
+  //     .scaleLinear()
+  //     .domain([
+  //       0,
+  //       d3.max(bins, d => Math.max(d.c1, d.c2)) || 1
+  //     ])
+  //     .nice()
+  //     .range([height, 0]);
+
+  //   let colorScale = null;
+  //   if (statsAll.max > statsAll.min) {
+  //     colorScale = d3
+  //       .scaleLinear()
+  //       .domain([
+  //         statsAll.min,
+  //         statsAll.p20,
+  //         statsAll.p35,
+  //         statsAll.median,
+  //         statsAll.p80,
+  //         statsAll.p90,
+  //         statsAll.p97,
+  //         statsAll.max
+  //       ])
+  //       .range([
+  //         "#ffffffff",
+  //         "#fffd9cff",
+  //         "#7dff7dff",
+  //         "#60faffff",
+  //         "#27a9ffff",
+  //         "#0044ffff",
+  //         "#7300ffff",
+  //         "#b600eeff"
+  //       ]);
+  //   }
+  //   console.log("[chart1] compare numeric colorScale defined:", !!colorScale);
+
+  //   addYGrid(svg, y, width);
+  //   addXGridNumeric(svg, x, height);
+
+  //   svg
+  //     .selectAll(".hist-region1")
+  //     .data(bins)
+  //     .enter()
+  //     .append("rect")
+  //     .attr("class", "hist-region1")
+  //     .attr("x", d => x(d.x0))
+  //     .attr("y", d => y(d.c1))
+  //     .attr("width", d => Math.max(0, x(d.x1) - x(d.x0) - 1))
+  //     .attr("height", d => height - y(d.c1))
+  //     .attr("fill", d => {
+  //       if (!colorScale) return "#ffffff";
+  //       const mid = (d.x0 + d.x1) / 2;
+  //       return colorScale(mid);
+  //     })
+  //     .attr("fill-opacity", 0.15);
+
+  //   svg
+  //     .selectAll(".hist-region2")
+  //     .data(bins)
+  //     .enter()
+  //     .append("rect")
+  //     .attr("class", "hist-region2")
+  //     .attr("x", d => x(d.x0))
+  //     .attr("y", d => y(d.c2))
+  //     .attr("width", d => Math.max(0, x(d.x1) - x(d.x0) - 1))
+  //     .attr("height", d => height - y(d.c2))
+  //     .attr("fill", d => {
+  //       if (!colorScale) return "#ffffff";
+  //       const mid = (d.x0 + d.x1) / 2;
+  //       return colorScale(mid);
+  //     })
+  //     .attr("fill-opacity", 0.15);
+
+  //   drawXAxisNumeric(svg, x, height);
+  //   drawYAxis(svg, y);
+  //   drawFrame(svg, width, height);
+  //   console.log("[chart1] compare numeric render complete");
+  //   return;
+  // }
+  //--------------------------------------------------------------------
+//------------- Compare + Numeric: Histogram -------------------------
+//--------------------------------------------------------------------
+if (mode === "compare" && dtype === "numeric") {
+  console.log("[chart1] compare numeric branch");
+  if (!Array.isArray(values) || values.length < 2) {
+    console.warn("[chart1] compare numeric: expected [values1, values2]");
+    return;
+  }
+
+  const raw1 = Array.isArray(values[0]) ? values[0] : [];
+  const raw2 = Array.isArray(values[1]) ? values[1] : [];
+
+  const clean1 = raw1.filter(v => Number.isFinite(v));
+  const clean2 = raw2.filter(v => Number.isFinite(v));
+
+  if (!clean1.length || !clean2.length) {
+    console.warn("[chart1] compare numeric: one of the series is empty");
+    return;
+  }
+
+  const combined = clean1.concat(clean2);
+  const sortedAll = combined.slice().sort((a, b) => a - b);
+
+  const pctAll = p => {
+    const idx = (p / 100) * (sortedAll.length - 1);
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    if (lo === hi) return sortedAll[lo];
+    const t = idx - lo;
+    return sortedAll[lo] * (1 - t) + sortedAll[hi] * t;
+  };
+
+  const statsAll = {
+    min: sortedAll[0],
+    p20: pctAll(20),
+    p35: pctAll(35),
+    median: pctAll(50),
+    p80: pctAll(80),
+    p90: pctAll(90),
+    p97: pctAll(97),
+    max: sortedAll[sortedAll.length - 1]
+  };
+  console.log("[chart1] compare numeric statsAll:", statsAll);
+
+  const positives = combined.filter(v => v > 0);
+  let scaleType = "linear";
+
+  if (positives.length >= 30 && positives.length / combined.length >= 0.8) {
+    const arr = positives.slice().sort((a, b) => a - b);
+    const pctPos = p => {
+      const idx = (p / 100) * (arr.length - 1);
+      const lo = Math.floor(idx);
+      const hi = Math.ceil(idx);
+      if (lo === hi) return arr[lo];
+      const t = idx - lo;
+      return arr[lo] * (1 - t) + arr[hi] * t;
+    };
+    const minPos = arr[0];
+    const maxPos = arr[arr.length - 1];
+    const medianPos = pctPos(50);
+    const ratio = (medianPos - minPos) / (maxPos - minPos || 1);
+    console.log("[chart1] compare numeric positives stats:", { minPos, maxPos, medianPos, ratio });
+    if (ratio < 0.15) scaleType = "log";
+  }
+
+  console.log("[chart1] compare numeric scaleType:", scaleType);
+
+  const usedCombined = scaleType === "log" && positives.length ? positives : combined;
+  const used1 = scaleType === "log" ? clean1.filter(v => v > 0) : clean1;
+  const used2 = scaleType === "log" ? clean2.filter(v => v > 0) : clean2;
+
+  let minVal = d3.min(usedCombined);
+  let maxVal = d3.max(usedCombined);
+  if (minVal === maxVal) maxVal = minVal * 1.01;
+  console.log("[chart1] compare numeric domain:", { minVal, maxVal });
+
+  const x =
+    scaleType === "log"
+      ? d3.scaleLog().domain([minVal, maxVal]).range([0, width])
+      : d3.scaleLinear().domain([minVal, maxVal]).nice().range([0, width]);
+
+  let binsCombined;
+  if (scaleType === "log") {
+    const logMin = Math.log10(minVal);
+    const logMax = Math.log10(maxVal);
+    const N = 200;
+    const edges = d3.range(N + 1).map(i =>
+      Math.pow(10, logMin + (i / N) * (logMax - logMin))
+    );
+    binsCombined = [];
+    for (let i = 0; i < N; i++) {
+      const x0 = edges[i];
+      const x1 = edges[i + 1];
+      binsCombined.push({ x0, x1 });
+    }
+    console.log("[chart1] compare numeric log bins count:", binsCombined.length);
+  } else {
+    const binGen = d3
+      .bin()
+      .domain([minVal, maxVal])
+      .thresholds(200);
+    const tmp = binGen(usedCombined);
+    binsCombined = tmp.map(b => ({ x0: b.x0, x1: b.x1 }));
+    console.log("[chart1] compare numeric linear bins count:", binsCombined.length);
+  }
+
+  const bins = binsCombined.map(b => {
+    const x0 = b.x0;
+    const x1 = b.x1;
+    const c1 = used1.filter(v => v >= x0 && v < x1).length;
+    const c2 = used2.filter(v => v >= x0 && v < x1).length;
+    return { x0, x1, c1, c2 };
+  });
+
+  const y = d3
+    .scaleLinear()
+    .domain([
+      0,
+      d3.max(bins, d => Math.max(d.c1, d.c2)) || 1
+    ])
+    .nice()
+    .range([height, 0]);
+
+  let colorScale = null;
+  if (statsAll.max > statsAll.min) {
+    colorScale = d3
+      .scaleLinear()
+      .domain([
+        statsAll.min,
+        statsAll.p20,
+        statsAll.p35,
+        statsAll.median,
+        statsAll.p80,
+        statsAll.p90,
+        statsAll.p97,
+        statsAll.max
+      ])
+      .range([
+        "#ffffffff",
+        "#fffd9cff",
+        "#7dff7dff",
+        "#60faffff",
+        "#27a9ffff",
+        "#0044ffff",
+        "#7300ffff",
+        "#b600eeff"
+      ]);
+  }
+  console.log("[chart1] compare numeric colorScale defined:", !!colorScale);
+
+  addYGrid(svg, y, width);
+  addXGridNumeric(svg, x, height);
+
+  // Region 1 bars
+  svg
+    .selectAll(".hist-region1")
+    .data(bins)
+    .enter()
+    .append("rect")
+    .attr("class", "hist-region1")
+    .attr("x", d => x(d.x0))
+    .attr("y", d => y(d.c1))
+    .attr("width", d => Math.max(0, x(d.x1) - x(d.x0) - 1))
+    .attr("height", d => height - y(d.c1))
+    .attr("fill", d => {
+      if (!colorScale) return "#ffffff";
+      const mid = (d.x0 + d.x1) / 2;
+      return colorScale(mid);
+    })
+    .attr("fill-opacity", d => (d.c1 > 0 && d.c2 > 0 ? 0.5 : 0.13));
+
+  // Region 2 bars
+  svg
+    .selectAll(".hist-region2")
+    .data(bins)
+    .enter()
+    .append("rect")
+    .attr("class", "hist-region2")
+    .attr("x", d => x(d.x0))
+    .attr("y", d => y(d.c2))
+    .attr("width", d => Math.max(0, x(d.x1) - x(d.x0) - 1))
+    .attr("height", d => height - y(d.c2))
+    .attr("fill", d => {
+      if (!colorScale) return "#ffffff";
+      const mid = (d.x0 + d.x1) / 2;
+      return colorScale(mid);
+    })
+    .attr("fill-opacity", d => (d.c1 > 0 && d.c2 > 0 ? 0.5 : 0.13));
+
+  drawXAxisNumeric(svg, x, height);
+  drawYAxis(svg, y);
+  drawFrame(svg, width, height);
+  console.log("[chart1] compare numeric render complete");
+  return;
   }
 };

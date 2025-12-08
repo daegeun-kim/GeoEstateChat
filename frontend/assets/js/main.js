@@ -9,6 +9,10 @@ const resetBtn = document.getElementById("reset");
 const singleMapDiv = document.getElementById("map");
 const mapLeftDiv = document.getElementById("map-left");
 const mapRightDiv = document.getElementById("map-right");
+const singleMapContainer = document.getElementById("single-map-container");
+const compareMapContainer = document.getElementById("compare-map-container");
+
+
 
 //--------------------------------------------------------------------
 //---------------------- Map source / layer ids ----------------------
@@ -179,6 +183,10 @@ if (resetBtn) {
 //--------------------------------------------------------------------
 function enableSingleLayout() {
   console.log("[layout] enableSingleLayout");
+  if (typeof singleMapContainer !== "undefined" && singleMapContainer) {
+    singleMapContainer.style.display = "block";
+  }
+  if (compareMapContainer) compareMapContainer.style.display = "none";
   if (singleMapDiv) singleMapDiv.style.display = "block";
   if (mapLeftDiv) mapLeftDiv.style.display = "none";
   if (mapRightDiv) mapRightDiv.style.display = "none";
@@ -192,6 +200,10 @@ function enableSingleLayout() {
 
 function enableCompareLayout() {
   console.log("[layout] enableCompareLayout");
+  if (typeof singleMapContainer !== "undefined" && singleMapContainer) {
+    singleMapContainer.style.display = "none";
+  }
+  if (compareMapContainer) compareMapContainer.style.display = "flex";
   if (singleMapDiv) singleMapDiv.style.display = "none";
   if (mapLeftDiv) mapLeftDiv.style.display = "block";
   if (mapRightDiv) mapRightDiv.style.display = "block";
@@ -208,6 +220,7 @@ function enableCompareLayout() {
     console.warn("[layout] mapRight not available in enableCompareLayout");
   }
 }
+
 
 
 //--------------------------------------------------------------------
@@ -255,7 +268,7 @@ function handleSingleData(data) {
 //---------------------- Compare-mode handler ------------------------
 //--------------------------------------------------------------------
 function handleCompareData(data) {
-  console.log("[compare] handleCompareData", data);
+  console.log("[compare] data.geojson shape:", Array.isArray(data.geojson), data.geojson);
   geojsonList = data.geojson || [];
   const expl = data.explanation || [];
   explanation = Array.isArray(expl) ? expl.join("\n\n") : expl || "";
@@ -266,9 +279,12 @@ function handleCompareData(data) {
     (g0 && getColumnName(g0)) ||
     (g1 && getColumnName(g1)) ||
     null;
+  dtype = data.dtype || null;
+
   console.log("[compare] parsed fields", {
     geojsonListLength: geojsonList.length,
     columnName,
+    dtype,
     explanationExists: !!explanation
   });
   updateCompareView();
@@ -403,10 +419,12 @@ function updateSingleView() {
 //--------------------------------------------------------------------
 //------------------ Update compare view (maps only) -----------------
 //--------------------------------------------------------------------
+
 function updateCompareView() {
   console.log("[compare] updateCompareView start", {
     geojsonListLength: geojsonList ? geojsonList.length : 0,
-    columnName
+    columnName,
+    dtype
   });
 
   if (!geojsonList || geojsonList.length < 3) {
@@ -444,7 +462,8 @@ function updateCompareView() {
       stats.median, "#60faffff",
       stats.p80, "#27a9ffff",
       stats.p90, "#0044ffff",
-      stats.p97, "#9700eeff"
+      stats.p97, "#7300ffff",
+      stats.max, "#b600eeff"
     ];
     fillColorExpr = [
       "case",
@@ -467,8 +486,29 @@ function updateCompareView() {
     return;
   }
 
+  if (window.renderChart1 && dtype === "numeric") {
+    const values1 = gLeft.features
+      .map(f => f.properties && f.properties[col])
+      .filter(v => typeof v === "number" && Number.isFinite(v));
+
+    const values2 = gRight.features
+      .map(f => f.properties && f.properties[col])
+      .filter(v => typeof v === "number" && Number.isFinite(v));
+
+    console.log("[compare] chart1 values lengths:", {
+      values1: values1.length,
+      values2: values2.length
+    });
+
+    if (values1.length && values2.length) {
+      window.renderChart1("#chart1", [values1, values2], "compare", dtype);
+    }
+  }
+
   applyDataCompare(gLeft, gRight, col, fillColorExpr);
 }
+
+
 //--------------------------------------------------------------------
 //------------------- Helper: stats for color ramp -------------------
 //--------------------------------------------------------------------
@@ -537,7 +577,8 @@ function applyDataSingle(geojsonObj, col, mode, dtype) {
         stats.median, "#60faffff",
         stats.p80, "#27a9ffff",
         stats.p90, "#0044ffff",
-        stats.p97, "#9700eeff"
+        stats.p97, "#7300ffff",
+        stats.max, "#b600eeff"
       ];
 
       fillColorExpr = [
@@ -638,11 +679,18 @@ function applyDataSingle(geojsonObj, col, mode, dtype) {
 //---------------------- Apply data: compare maps --------------------
 //--------------------------------------------------------------------
 function applyDataCompare(geojsonLeftData, geojsonRightData, col, fillColorExpr) {
-  console.log("[compare] applyDataCompare", {
+  console.log("[compare] applyDataCompare entered", {
     col,
     leftFeatures: geojsonLeftData && geojsonLeftData.features ? geojsonLeftData.features.length : 0,
-    rightFeatures: geojsonRightData && geojsonRightData.features ? geojsonRightData.features.length : 0
+    rightFeatures: geojsonRightData && geojsonRightData.features ? geojsonRightData.features.length : 0,
+    hasMapLeft: typeof mapLeft !== "undefined" && !!mapLeft,
+    hasMapRight: typeof mapRight !== "undefined" && !!mapRight
   });
+
+  if (!mapLeft || !mapRight) {
+    console.warn("[compare] mapLeft or mapRight missing");
+    return;
+  }
 
   if (mapLeft.getSource(leftSourceId)) {
     console.log("[compare] updating left source");
@@ -693,6 +741,7 @@ function applyDataCompare(geojsonLeftData, geojsonRightData, col, fillColorExpr)
   if (boundsLeft) mapLeft.fitBounds(boundsLeft, { padding: 20 });
   if (boundsRight) mapRight.fitBounds(boundsRight, { padding: 20 });
 }
+
 
 
 //--------------------------------------------------------------------
