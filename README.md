@@ -9,3 +9,6 @@ Keyword:
 - LLM Automation
 - Geospatial Analysis
 - Real Estate
+
+____________
+The Repository only contains the code, the app is not deployable yet due to the datebase setup
